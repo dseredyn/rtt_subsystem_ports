@@ -246,7 +246,7 @@ def write_boost_serialization(s, spec, cpp_name_prefix, file):
                     raise
                 s.write('  %s_ = interface_ports::OutputPortInterfaceFactory<%s >::Instance()->Create("%s", tc, prefix + std::string(prefix.empty()?"":"_") + \"%s\");\n'%(field.name, msg_type_to_cpp(field.type)[:-1], field.type, field.name))
             elif port_spec[0] == 'port':
-                s.write('  %s_ = interface_ports::OutputPortInterfaceFactory<%s >::Instance()->Create("%s/%s", tc, prefix + std::string(prefix.empty()?"":"_") + \"%s\");\n'%(field.name, msg_type_to_cpp(field.type), field.type, field.name, field.name))
+                s.write('  %s_ = interface_ports::OutputPortInterfaceFactory<%s >::Instance()->Create("%s_%s_%s", tc, prefix + std::string(prefix.empty()?"":"_") + \"%s\");\n'%(field.name, msg_type_to_cpp(field.type), spec.package, spec.short_name, field.name, field.name))
                 s.write('  if (!%s_) {\n'%(field.name))
                 s.write('    %s_.reset( new interface_ports::OutputPort<Container_::_%s_type >(tc, prefix + std::string(prefix.empty()?"":"_") + \"%s\") );\n'%(field.name, field.name, field.name))
                 s.write('  }\n')
