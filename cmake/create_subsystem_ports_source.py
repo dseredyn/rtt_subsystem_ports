@@ -204,10 +204,10 @@ def write_boost_serialization(s, spec, cpp_name_prefix, file):
     s.write('}\n\n')
 
     s.write('bool %s_InputPorts::read(%s& ros) {\n'%(spec.short_name, spec.short_name))
-    s.write('if (!this_container__->read(ros)) {\n')
+    s.write('if (!(this_container__ && this_container__->read(ros))) {\n')
 
     s.write('    bool result = true;\n')
-    s.write('    ros = %s();\n'%(spec.short_name))
+    s.write('    //ros = %s();\n'%(spec.short_name))
     for field in spec.parsed_fields():
         if field.name in port_spec_dict:
             port_spec = port_spec_dict[field.name]
@@ -217,9 +217,9 @@ def write_boost_serialization(s, spec, cpp_name_prefix, file):
             else:
                 left_side = 'result &= '
             if port_spec[0] == 'container':
-                s.write('    ' + left_side + '%s_->read(ros.%s);\n'%(field.name, field.name))
+                s.write('    ' + left_side + '%s_ && %s_->read(ros.%s);\n'%(field.name, field.name, field.name))
             else:
-                s.write('    ' + left_side + '%s_->read(ros.%s);\n'%(field.name, field.name))
+                s.write('    ' + left_side + '%s_ && %s_->read(ros.%s);\n'%(field.name, field.name, field.name))
     s.write('    if (!result) {\n')
     s.write('      ros = %s();\n'%(spec.short_name))
     s.write('    }\n')
@@ -228,6 +228,26 @@ def write_boost_serialization(s, spec, cpp_name_prefix, file):
     s.write('  }\n')
     s.write('  return true;\n')
     s.write('}\n\n')
+
+    s.write('bool %s_InputPorts::removeUnconnectedPorts() {\n'%(spec.short_name))
+    s.write('  bool result = true;\n')
+    s.write('  if (this_container__->removeUnconnectedPorts()) {\n')
+    s.write('    this_container__.reset();\n')
+    s.write('  }\n')
+    s.write('  else {\n')
+    s.write('    result = false;\n')
+    s.write('  }\n')
+    for field in spec.parsed_fields():
+        if field.name in port_spec_dict:
+            port_spec = port_spec_dict[field.name]
+            s.write('  if (%s_->removeUnconnectedPorts()) {\n'%(field.name))
+            s.write('    %s_.reset();\n'%(field.name))
+            s.write('  }\n')
+            s.write('  else {\n')
+            s.write('    result = false;\n')
+            s.write('  }\n')
+    s.write('  return result;\n')
+    s.write('}\n')
 
     s.write('REGISTER_InputPortInterface( %s_InputPorts, "%s/%s" );\n\n'%(spec.short_name, spec.package, spec.short_name))
 
@@ -254,7 +274,7 @@ def write_boost_serialization(s, spec, cpp_name_prefix, file):
 
     s.write('bool %s_OutputPorts::write(const %s& ros) {\n'%(spec.short_name, spec.short_name))
 
-    s.write('  this_container__->write(ros);\n')
+    s.write('  this_container__ && this_container__->write(ros);\n')
 
     for field in spec.parsed_fields():
         if field.name in port_spec_dict:
@@ -264,14 +284,34 @@ def write_boost_serialization(s, spec, cpp_name_prefix, file):
                 s.write('  if (ros.%s) {\n  '%(validity_field))
 
             if port_spec[0] == 'container':
-                s.write('  %s_->write(ros.%s);\n'%(field.name, field.name))
+                s.write('  %s_ && %s_->write(ros.%s);\n'%(field.name, field.name, field.name))
             else:
-                s.write('  %s_->write(ros.%s);\n'%(field.name, field.name))
+                s.write('  %s_ && %s_->write(ros.%s);\n'%(field.name, field.name, field.name))
 
             if validity_field:
                 s.write('  }\n')
 
     s.write('  return true;\n')
+    s.write('}\n')
+
+    s.write('bool %s_OutputPorts::removeUnconnectedPorts() {\n'%(spec.short_name))
+    s.write('  bool result = true;\n')
+    s.write('  if (this_container__->removeUnconnectedPorts()) {\n')
+    s.write('    this_container__.reset();\n')
+    s.write('  }\n')
+    s.write('  else {\n')
+    s.write('    result = false;\n')
+    s.write('  }\n')
+    for field in spec.parsed_fields():
+        if field.name in port_spec_dict:
+            port_spec = port_spec_dict[field.name]
+            s.write('  if (%s_->removeUnconnectedPorts()) {\n'%(field.name))
+            s.write('    %s_.reset();\n'%(field.name))
+            s.write('  }\n')
+            s.write('  else {\n')
+            s.write('    result = false;\n')
+            s.write('  }\n')
+    s.write('  return result;\n')
     s.write('}\n')
 
     s.write('REGISTER_OutputPortInterface( %s_OutputPorts, "%s/%s" );\n\n'%(spec.short_name, spec.package, spec.short_name))

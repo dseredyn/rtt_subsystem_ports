@@ -179,8 +179,6 @@ def write_boost_serialization(s, spec, cpp_name_prefix, file):
         if field.name in port_spec_dict:
             array_size = array_size + 1
 
-#    s.write('boost::array<boost::shared_ptr<interface_ports::PortInterface >, %s> ports_;\n'%(array_size))
-
     s.write('  boost::shared_ptr<interface_ports::InputPortInterface<Container_ > > this_container__;\n')
 
     # generate member list
@@ -200,7 +198,8 @@ def write_boost_serialization(s, spec, cpp_name_prefix, file):
 
     s.write('  %s_InputPorts(RTT::TaskContext *tc, const std::string& prefix="");\n'%(spec.short_name))
 
-    s.write('  virtual bool read(%s& ros);\n'%(spec.short_name))
+    s.write('  bool read(%s& ros);\n'%(spec.short_name))
+    s.write('  bool removeUnconnectedPorts();\n')
 
     s.write('};\n\n')
 
@@ -219,8 +218,6 @@ def write_boost_serialization(s, spec, cpp_name_prefix, file):
         if field.name in port_spec_dict:
             array_size = array_size + 1
 
-#    s.write('boost::array<boost::shared_ptr<interface_ports::PortInterface >, %s> ports_;\n'%(array_size))
-
     s.write('  boost::shared_ptr<interface_ports::OutputPortInterface<Container_ > > this_container__;\n')
 
     # generate member list
@@ -238,7 +235,8 @@ def write_boost_serialization(s, spec, cpp_name_prefix, file):
     s.write('\npublic:\n')
 
     s.write('  %s_OutputPorts(RTT::TaskContext *tc, const std::string& prefix="");\n'%(spec.short_name))
-    s.write('  virtual bool write(const %s& ros);\n'%(spec.short_name))
+    s.write('  bool write(const %s& ros);\n'%(spec.short_name))
+    s.write('  bool removeUnconnectedPorts();\n')
 
     s.write('};\n\n')
 
