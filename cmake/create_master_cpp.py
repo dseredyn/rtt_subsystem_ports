@@ -224,19 +224,29 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("    explicit " + package + "_Master(RTT::TaskContext* owner)\n")
     s.write("        : common_behavior::MasterService(owner)\n")
     s.write("        , owner_(owner)\n")
-    for p_in in sd.ports_in:
-        s.write("        , " + p_in.short_name + "_no_data_counter_(1000)\n")
-        s.write("        , port_" + p_in.short_name + "_in_(\"" + p_in.name + "_INPORT\")\n")
-        s.write("        , port_" + p_in.short_name + "_out_(\"" + p_in.name + "_OUTPORT\")\n")
+    s.write("        , subsystem_subname_()\n")
     s.write("        , port_no_data_trigger_in__(\"no_data_trigger_INPORT_\")\n")
     s.write("    {\n")
 
+    s.write("        RTT::Property<std::string >* master_subsystem_subname = dynamic_cast<RTT::Property<std::string >* >(owner->getProperty(\"subsystem_subname\"));\n")
+    s.write("        if (master_subsystem_subname) {\n")
+    s.write("            subsystem_subname_ = master_subsystem_subname->get();\n")
+    s.write("            if (!subsystem_subname_.empty()) {\n")
+    s.write("                subsystem_subname_ = std::string(\"_\") + subsystem_subname_;\n")
+    s.write("            }\n")
+    s.write("        }\n")
+
+#    for p_in in sd.ports_in:
+#        s.write("        , " + p_in.short_name + "_no_data_counter_(1000)\n")
+#        s.write("        , port_" + p_in.short_name + "_in_(\"" + p_in.name + "_INPORT\")\n")
+#        s.write("        , port_" + p_in.short_name + "_out_(\"" + p_in.name + "_OUTPORT\")\n")
+
     for p_in in sd.ports_in:
         if p_in.event:
-            s.write("        owner_->addEventPort(port_" + p_in.short_name + "_in_);\n")
+            s.write("        owner_->addEventPort(std::string(\"" + p_in.name + "\") + subsystem_subname_ + std::string(\"_INPORT\"), port_" + p_in.short_name + "_in_);\n")
         else:
-            s.write("        owner_->addPort(port_" + p_in.short_name + "_in_);\n")
-        s.write("        owner_->addPort(port_" + p_in.short_name + "_out_);\n\n")
+            s.write("        owner_->addPort(std::string(\"" + p_in.name + "\") + subsystem_subname_ + std::string(\"_INPORT\"), port_" + p_in.short_name + "_in_);\n")
+        s.write("        owner_->addPort(std::string(\"" + p_in.name + "\") + subsystem_subname_ + std::string(\"_OUTPORT\"), port_" + p_in.short_name + "_out_);\n\n")
 
     s.write("\n        owner_->addEventPort(port_no_data_trigger_in__);\n")
 
@@ -355,9 +365,9 @@ def generate_boost_serialization(package, port_def, output_cpp):
     for p in sd.ports_in:
         if p.side == 'bottom':
             if p.event:
-                s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.type_pkg + "_" + p.type_name + "\", \"" + p.name + "\", true, " + str(p.period_min) + ", " + str(p.period_avg) + ", " + str(p.period_max) + "));\n")
+                s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.type_pkg + "_" + p.type_name + "\", std::string(\"" + p.name + "\") + subsystem_subname_, true, " + str(p.period_min) + ", " + str(p.period_avg) + ", " + str(p.period_max) + "));\n")
             else:
-                s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.type_pkg + "_" + p.type_name + "\", \"" + p.name + "\"));\n")
+                s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.type_pkg + "_" + p.type_name + "\", std::string(\"" + p.name + "\") + subsystem_subname_));\n")
     s.write("    }\n\n")
 
     s.write("    virtual void getUpperInputBuffers(std::vector<common_behavior::InputBufferInfo >& info) const {\n")
@@ -365,23 +375,23 @@ def generate_boost_serialization(package, port_def, output_cpp):
     for p in sd.ports_in:
         if p.side == 'top':
             if p.event:
-                s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.type_pkg + "_" + p.type_name + "\", \"" + p.name + "\", true, " + str(p.period_min) + ", " + str(p.period_avg) + ", " + str(p.period_max) + "));\n")
+                s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.type_pkg + "_" + p.type_name + "\", std::string(\"" + p.name + "\") + subsystem_subname_, true, " + str(p.period_min) + ", " + str(p.period_avg) + ", " + str(p.period_max) + "));\n")
             else:
-                s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.type_pkg + "_" + p.type_name + "\", \"" + p.name + "\"));\n")
+                s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.type_pkg + "_" + p.type_name + "\", std::string(\"" + p.name + "\") + subsystem_subname_));\n")
     s.write("    }\n\n")
 
     s.write("    virtual void getLowerOutputBuffers(std::vector<common_behavior::OutputBufferInfo >& info) const {\n")
     s.write("        info = std::vector<common_behavior::OutputBufferInfo >();\n")
     for p in sd.ports_out:
         if p.side == 'bottom':
-            s.write("        info.push_back(common_behavior::OutputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.type_pkg + "_" + p.type_name + "\", \"" + p.name + "\"));\n")
+            s.write("        info.push_back(common_behavior::OutputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.type_pkg + "_" + p.type_name + "\", std::string(\"" + p.name + "\") + subsystem_subname_));\n")
     s.write("    }\n\n")
 
     s.write("    virtual void getUpperOutputBuffers(std::vector<common_behavior::OutputBufferInfo >& info) const {\n")
     s.write("        info = std::vector<common_behavior::OutputBufferInfo >();\n")
     for p in sd.ports_out:
         if p.side == 'top':
-            s.write("        info.push_back(common_behavior::OutputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.type_pkg + "_" + p.type_name + "\", \"" + p.name + "\"));\n")
+            s.write("        info.push_back(common_behavior::OutputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.type_pkg + "_" + p.type_name + "\", std::string(\"" + p.name + "\") + subsystem_subname_));\n")
     s.write("    }\n\n")
 
     s.write("    virtual std::vector<std::string > getStates() const {\n")
@@ -437,6 +447,8 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("\n    RTT::TaskContext* owner_;\n")
     if sd.trigger_gazebo:
         s.write("    RTT::OperationCaller<void()> singleStep_;\n")
+
+    s.write("    std::string subsystem_subname_;\n")
 
     s.write("};\n\n")
 
