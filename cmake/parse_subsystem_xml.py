@@ -14,9 +14,8 @@ def str_to_side(s):
     return result
 
 class InputPort:
-    def __init__(self, name, type, side, ipc, short_name, period_min=None, period_avg=None, period_max=None):
-        self.name = name
-        self.short_name = short_name
+    def __init__(self, alias, type, side, ipc, period_min=None, period_avg=None, period_max=None):
+        self.alias = alias
         type_s = type.split("::")
         if len(type_s) != 2:
             raise Exception('in', 'wrong type attribute of <ports> <in> tag: ' + type + ', should be \'package::typename\"')
@@ -36,9 +35,15 @@ class InputPort:
             self.period_avg = None
             self.period_max = None
 
+    def getTypeStr(self):
+        return self.type_pkg + "_" + self.type_name
+
+    def getTypeCpp(self):
+        return self.type_pkg + "::" + self.type_name
+
 class OutputPort:
-    def __init__(self, name, type, side, ipc):
-        self.name = name
+    def __init__(self, alias, type, side, ipc):
+        self.alias = alias
         type_s = type.split("::")
         if len(type_s) != 2:
             raise Exception('in', 'wrong type attribute of <ports> <out> tag: ' + type + ', should be \'package::typename\"')
@@ -46,6 +51,12 @@ class OutputPort:
         self.type_name = type_s[1]
         self.side = str_to_side(side)
         self.ipc = str_to_bool(ipc)
+
+    def getTypeStr(self):
+        return self.type_pkg + "_" + self.type_name
+
+    def getTypeCpp(self):
+        return self.type_pkg + "::" + self.type_name
 
 class SubsystemDefinition:
     def __init__(self):
@@ -66,27 +77,37 @@ def parseSubsystemXml(xml_str):
     subsystem_definition = dom.getElementsByTagName("subsystem_definition")
     if len(subsystem_definition) != 1:
         raise Exception('subsystem_definition', 'subsystem_definition is missing')
+
+    #
+    # <ports>
+    #
     ports = subsystem_definition[0].getElementsByTagName("ports")
     if len(ports) != 1:
         raise Exception('ports', 'wrong number of <ports> tags, should be 1')
 
     sd = SubsystemDefinition()
 
+    #
+    # <in>
+    #
     ports_in = ports[0].getElementsByTagName('in')
     for p_in in ports_in:
         trigger = p_in.getElementsByTagName('trigger')
         if len(trigger) == 1:
-            sd.ports_in.append( InputPort(p_in.getAttribute("name"), p_in.getAttribute("type"),
-                p_in.getAttribute("side"), p_in.getAttribute("ipc"), p_in.getAttribute("short_name"),
+            sd.ports_in.append( InputPort(p_in.getAttribute("alias"), p_in.getAttribute("type"),
+                p_in.getAttribute("side"), p_in.getAttribute("ipc"),
                 trigger[0].getAttribute("min"), trigger[0].getAttribute("avg"), trigger[0].getAttribute("max")) )
         elif len(trigger) == 0:
-            sd.ports_in.append( InputPort(p_in.getAttribute("name"), p_in.getAttribute("type"), p_in.getAttribute("side"), p_in.getAttribute("ipc"), p_in.getAttribute("short_name")) )
+            sd.ports_in.append( InputPort(p_in.getAttribute("alias"), p_in.getAttribute("type"), p_in.getAttribute("side"), p_in.getAttribute("ipc")) )
         else:
             raise Exception('ports in trigger', 'wrong number of <ports> <in> <trigger> tags, should be 0 or 1')
 
+    #
+    # <out>
+    #
     ports_out = ports[0].getElementsByTagName('out')
     for p_out in ports_out:
-        sd.ports_out.append( OutputPort(p_out.getAttribute("name"), p_out.getAttribute("type"), p_in.getAttribute("side"), p_out.getAttribute("ipc")) )
+        sd.ports_out.append( OutputPort(p_out.getAttribute("alias"), p_out.getAttribute("type"), p_in.getAttribute("side"), p_out.getAttribute("ipc")) )
         
     #
     # <errors>
