@@ -200,7 +200,8 @@ def generate_boost_serialization(package, port_def, output_cpp):
             s.write("            owner->loadService(\"sim_clock_activity\");\n")
         s.write("        owner->setPeriod(" + str(sd.period) + ");\n")
 
-#    s.write("        }\n")
+    for pred in sd.predicates:
+        s.write("       pred_" + pred + " = PredicateFactory::Instance()->getPredicate(\"" + package + "_types::" + pred + "\");\n")
 
     s.write("    }\n\n")
 
@@ -318,7 +319,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
 
     s.write("    virtual common_behavior::PredicateListPtr allocatePredicateList() {\n")
     for pred in sd.predicates:
-        s.write("        pred_" + pred + " = PredicateFactory::Instance()->getPredicate(\"" + package + "_types::" + pred + "\");\n")
+#        s.write("        pred_" + pred + " = PredicateFactory::Instance()->getPredicate(\"" + package + "_types::" + pred + "\");\n")
         s.write("        if (!pred_" + pred + ") {\n")
         s.write("            return NULL;\n")
         s.write("        }\n")
