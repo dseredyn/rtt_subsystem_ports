@@ -24,9 +24,6 @@ def generate_boost_serialization(package, port_def, output_cpp):
     """
     mc = genmsg.msg_loader.MsgContext()
 
-#    spec = genmsg.msg_loader.load_msg_from_file(mc, msg_path, msg_type)
-#    cpp_prefix = '%s::'%(package)
-
     with open(port_def, 'r') as f:
         read_data = f.read()
 
@@ -43,6 +40,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("#include \"common_behavior/input_data.h\"\n")
     s.write("#include \"common_behavior/abstract_behavior.h\"\n")
     s.write("#include \"common_behavior/abstract_state.h\"\n\n")
+    s.write("#include \"common_behavior/abstract_predicate_list.h\"\n\n")
 
 
     for p_in in sd.ports_in:
@@ -61,6 +59,26 @@ def generate_boost_serialization(package, port_def, output_cpp):
 
     s.write("};\n\n")
 
+    s.write("typedef boost::shared_ptr<InputData > InputDataPtr;\n\n")
+    s.write("typedef boost::shared_ptr<const InputData > InputDataConstPtr;\n\n")
+
+    #
+    # class PredicateList
+    #
+
+    s.write("class PredicateList : public common_behavior::PredicateList {\n")
+    s.write("public:\n")
+    for pred in sd.predicates:
+        s.write("  bool " + pred + ";\n")
+    for st in sd.states:
+        s.write("  bool PREV_STATE_" + st.name + ";\n")
+    s.write("\n  virtual common_behavior::PredicateList& operator=(const common_behavior::PredicateList& arg);\n")
+
+    s.write("};\n\n")
+
+    s.write("typedef boost::shared_ptr<PredicateList > PredicateListPtr;\n\n")
+    s.write("typedef boost::shared_ptr<const PredicateList > PredicateListConstPtr;\n\n")
+
     #
     # errors
     #
@@ -76,64 +94,62 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("std::string getErrorReasonStr(ErrorCauseConstPtr err);\n\n")
 
     #
-    # behavior base class
+    # predicate function prototype
     #
-    s.write("class BehaviorBase : public common_behavior::BehaviorBase {\n")
+
+    s.write("typedef bool (*predicateFunction)(\n")
+    s.write("            const InputDataConstPtr&,\n")
+    s.write("            const std::vector<RTT::TaskContext*>&,\n")
+    s.write("            const std::string&);\n\n")
+
+    s.write("class PredicateFactory\n")
+    s.write("{\n")
+    s.write("private:\n")
+    s.write("    map<string, predicateFunction > functionRegistry;\n\n")
+
+    s.write("    PredicateFactory() {}\n\n")
+
     s.write("public:\n")
-    s.write("  bool checkErrorCondition(\n")
-    s.write("      const boost::shared_ptr<common_behavior::InputData >& in_data,\n")
-    s.write("      const std::vector<RTT::TaskContext*> &components,\n")
-    s.write("      common_behavior::AbstractConditionCausePtr result = common_behavior::AbstractConditionCausePtr()) const {\n")
-    s.write("    return checkErrorCondition( boost::static_pointer_cast<InputData >(in_data),\n")
-    s.write("                                components,\n")
-    s.write("                                boost::dynamic_pointer_cast<ErrorCause >(result) );\n")
-    s.write("  }\n\n")
 
-    s.write("  bool checkStopCondition(\n")
-    s.write("      const boost::shared_ptr<common_behavior::InputData >& in_data,\n")
-    s.write("      const std::vector<RTT::TaskContext*> &components) const {\n")
-    s.write("    return checkStopCondition( boost::static_pointer_cast<InputData >(in_data), components);\n")
-    s.write("  }\n\n")
-
-    s.write("  virtual bool checkErrorCondition(\n")
-    s.write("      const boost::shared_ptr<InputData >& in_data,\n")
-    s.write("      const std::vector<RTT::TaskContext*> &components,\n")
-    s.write("      ErrorCausePtr result) const = 0;\n\n")
-
-    s.write("  virtual bool checkStopCondition(\n")
-    s.write("      const boost::shared_ptr<InputData >& in_data,\n")
-    s.write("      const std::vector<RTT::TaskContext*> &components) const = 0;\n\n")
-
-    s.write("protected:\n")
-    s.write("  BehaviorBase(const std::string& name, const std::string& short_name)\n")
-    s.write("      : common_behavior::BehaviorBase(name, short_name)\n")
-    s.write("  { }\n")
-    s.write("};\n\n")
-
-    #
-    # state base class
-    #
-    s.write("class StateBase : public common_behavior::StateBase {\n")
-    s.write("public:\n")
-    s.write("    bool checkInitialCondition(\n")
-    s.write("            const boost::shared_ptr<common_behavior::InputData >& in_data,\n")
-    s.write("            const std::vector<RTT::TaskContext*> &components,\n")
-    s.write("            const std::string& prev_state_name,\n")
-    s.write("            bool in_error) const {\n")
-    s.write("        return checkInitialCondition(boost::static_pointer_cast<InputData >(in_data), components, prev_state_name, in_error);\n")
+    s.write("    void RegisterFunction(const std::string &name, predicateFunction func)\n")
+    s.write("    {\n")
+    s.write("        // register the class factory function\n")
+    s.write("        functionRegistry[name] = func;\n")
     s.write("    }\n\n")
 
-    s.write("    virtual bool checkInitialCondition(\n")
-    s.write("            const boost::shared_ptr<InputData >& in_data,\n")
-    s.write("            const std::vector<RTT::TaskContext*> &components,\n")
-    s.write("            const std::string& prev_state_name,\n")
-    s.write("            bool in_error) const = 0;\n\n")
+    s.write("    const map<string, predicateFunction >& getPredicates() const {\n")
+    s.write("        return functionRegistry;\n")
+    s.write("    }\n\n")
 
-    s.write("protected:\n")
-    s.write("    StateBase(const std::string& state_name, const std::string& short_state_name, const std::string& behavior_name) :\n")
-    s.write("        common_behavior::StateBase(state_name, short_state_name, behavior_name)\n")
-    s.write("    { }\n")
-    s.write("};\n")
+    s.write("    predicateFunction getPredicate(const std::string &name) const {\n")
+    s.write("        map<string, predicateFunction >::const_iterator it = functionRegistry.find( name );\n")
+    s.write("        return it->second;\n")
+    s.write("    }\n\n")
+
+    s.write("    static PredicateFactory* Instance()\n")
+    s.write("    {\n")
+    s.write("        static PredicateFactory factory;\n")
+    s.write("        return &factory;\n")
+    s.write("    }\n")
+    s.write("};\n\n")
+
+    s.write("class PredicateRegistrar {\n")
+    s.write("public:\n")
+    s.write("    PredicateRegistrar(predicateFunction func, std::string func_name)\n")
+    s.write("    {\n")
+    s.write("        std::cout << \"PredicateRegistrar: \" << func_name << std::endl;\n")
+    s.write("        // register the class factory function\n")
+    s.write("        PredicateFactory::Instance()->RegisterFunction(func_name, func);\n")
+    s.write("    }\n")
+    s.write("};\n\n")
+
+    s.write("#define LITERAL_registrar_predicate_(X) registrar_predicate_##X\n")
+    s.write("#define EXPAND_registrar_predicate_(X) LITERAL_registrar_predicate_(X)\n\n")
+
+    s.write("#define STRINGIFY(x) #x\n")
+    s.write("#define TOSTRING(x) STRINGIFY(x)\n\n")
+
+    s.write("#define REGISTER_PREDICATE( PREDICATE_FUNCTION ) static " + package + "_types::PredicateRegistrar EXPAND_registrar_predicate_(__LINE__)(PREDICATE_FUNCTION, TOSTRING(PREDICATE_FUNCTION))\n\n")
 
     s.write("};  // namespace " + package + "_types\n\n")
 

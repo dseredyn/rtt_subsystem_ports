@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import sys
+import copy
 
 import roslib
 
@@ -14,6 +15,89 @@ from cStringIO import StringIO
 import argparse
 
 import parse_subsystem_xml
+
+def logicExprToCpp(expr, predicates, states):
+    cpp = expr
+
+    predicates_copy = copy.copy(predicates)
+    predicates_copy.append("IN_ERROR")
+    predicates_copy.append("TRUE")
+    predicates_copy.append("FALSE")
+    for st in states:
+        predicates_copy.append("PREV_STATE_" + st.name)
+    predicates_sorted = sorted(predicates_copy, key=lambda pred: -len(pred))
+
+    pred_id_map = {}
+    id_pred_map = {}
+    count = 0
+    for pred in predicates_sorted:
+        pred_id = "{" + str(count) + "}"
+        pred_id_map[pred] = pred_id
+        id_pred_map[pred_id] = pred
+        count = count + 1
+
+    # find all predicates
+    for pred in predicates_sorted:
+        cpp = cpp.replace(pred, pred_id_map[pred])
+
+    # find all 'not'
+    idx = 0
+    while True:
+        idx = cpp.find("not", idx)
+        if idx == -1:
+            break
+
+        if idx + 3 >= len(cpp):
+            raise Exception('invalid expression', 'invalid logic expression syntax, character ' + idx + ", expr: '" + cpp + "'")
+
+        if (idx == 0 or cpp[idx-1].isspace() or cpp[idx-1] == '(') and cpp[idx+3].isspace():
+            cpp = cpp[:idx] + '!' + cpp[idx+3:]
+            idx = idx + 1
+        else:
+            idx = idx + 3
+
+    # find all 'and'
+    idx = 0
+    while True:
+        idx = cpp.find("and", idx)
+        if idx == -1:
+            break
+
+        if idx + 3 >= len(cpp) or idx == 0:
+            raise Exception('invalid expression', 'invalid logic expression syntax, character ' + idx + ", expr: '" + cpp + "'")
+
+        if cpp[idx-1].isspace() and cpp[idx+3].isspace():
+            cpp = cpp[:idx] + '&&' + cpp[idx+3:]
+            idx = idx + 2
+        else:
+            idx = idx + 3
+
+    # find all 'or'
+    idx = 0
+    while True:
+        idx = cpp.find("or", idx)
+        if idx == -1:
+            break
+
+        if idx + 2 >= len(cpp) or idx == 0:
+            raise Exception('invalid expression', 'invalid logic expression syntax, character ' + idx + ", expr: '" + cpp + "'")
+
+        if cpp[idx-1].isspace() and cpp[idx+2].isspace():
+            cpp = cpp[:idx] + '||' + cpp[idx+2:]
+            idx = idx + 2
+        else:
+            idx = idx + 2
+
+    # find all predicates
+    for pred in predicates_sorted:
+        if pred == 'TRUE':
+            cpp = cpp.replace(pred_id_map[pred], "true")
+        elif pred == 'FALSE':
+            cpp = cpp.replace(pred_id_map[pred], "false")
+        else:
+            cpp = cpp.replace(pred_id_map[pred], "p->" + pred)
+
+    return cpp
 
 def generate_boost_serialization(package, port_def, output_cpp):
     """
@@ -123,13 +207,13 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("    virtual ~" + package + "_Master() {\n")
     s.write("    }\n\n")
 
-    s.write("    virtual void initBuffers(boost::shared_ptr<common_behavior::InputData >& in_data) const {\n")
+    s.write("    virtual void initBuffers(common_behavior::InputDataPtr& in_data) const {\n")
     s.write("        boost::shared_ptr<InputData > in = boost::static_pointer_cast<InputData >(in_data);\n")
     for p_in in sd.ports_in:
         s.write("        in->" + p_in.alias + " = " + p_in.getTypeCpp() + "();\n")
     s.write("    }\n\n")
 
-    s.write("    virtual void readIpcPorts(boost::shared_ptr<common_behavior::InputData >& in_data) {\n")
+    s.write("    virtual void readIpcPorts(common_behavior::InputDataPtr& in_data) {\n")
     s.write("        boost::shared_ptr<InputData > in = boost::static_pointer_cast<InputData >(in_data);\n")
     for p_in in sd.ports_in:
         if not p_in.ipc:
@@ -152,7 +236,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
         s.write("        }\n")
     s.write("    }\n\n")
 
-    s.write("    virtual void readInternalPorts(boost::shared_ptr<common_behavior::InputData >& in_data) {\n")
+    s.write("    virtual void readInternalPorts(common_behavior::InputDataPtr& in_data) {\n")
     s.write("        boost::shared_ptr<InputData > in = boost::static_pointer_cast<InputData >(in_data);\n")
     for p_in in sd.ports_in:
         if p_in.ipc:
@@ -162,13 +246,13 @@ def generate_boost_serialization(package, port_def, output_cpp):
         s.write("        }\n")
     s.write("    }\n\n")
 
-    s.write("    virtual void writePorts(boost::shared_ptr<common_behavior::InputData>& in_data) {\n")
+    s.write("    virtual void writePorts(common_behavior::InputDataPtr& in_data) {\n")
     s.write("        boost::shared_ptr<InputData> in = boost::static_pointer_cast<InputData >(in_data);\n")
     for p_in in sd.ports_in:
         s.write("        port_" + p_in.alias + "_out_.write(in->" + p_in.alias + ");\n")
     s.write("    }\n\n")
 
-    s.write("    virtual boost::shared_ptr<common_behavior::InputData > getDataSample() const {\n")
+    s.write("    virtual common_behavior::InputDataPtr getDataSample() const {\n")
     s.write("        boost::shared_ptr<InputData > ptr(new InputData());\n")
     for p_in in sd.ports_in:
         s.write("        ptr->" + p_in.alias + " = " + p_in.getTypeCpp() + "();\n")
@@ -212,12 +296,12 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("    virtual std::vector<std::string > getStates() const {\n")
     s.write("        return std::vector<std::string >({\n")
     for st in sd.states:
-        s.write("                   \"" + st + "\",\n")
-    s.write("                   \"" + sd.initial_state + "\"});\n")
+        s.write("                   \"" + package + "_" + st.name + "\",\n")
+    s.write("                   });\n")
     s.write("    }\n\n")
 
     s.write("    virtual std::string getInitialState() const {\n")
-    s.write("        return \"" + sd.initial_state + "\";\n")
+    s.write("        return \"" + package + "_" + sd.getInitialStateName() + "\";\n")
     s.write("    }\n\n")
 
     s.write("    virtual std::vector<std::pair<std::string, std::string > > getLatchedConnections() const {\n")
@@ -230,6 +314,39 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("    virtual int getInputDataWaitCycles() const {\n")
     s.write("        return " + str(sd.no_input_wait_cycles) + ";\n")
     s.write("    }\n\n")
+
+
+    s.write("    virtual common_behavior::PredicateListPtr allocatePredicateList() {\n")
+    for pred in sd.predicates:
+        s.write("        pred_" + pred + " = PredicateFactory::Instance()->getPredicate(\"" + package + "_types::" + pred + "\");\n")
+        s.write("        if (!pred_" + pred + ") {\n")
+        s.write("            return NULL;\n")
+        s.write("        }\n")
+    s.write("        PredicateListPtr ptr(new PredicateList());\n")
+    s.write("        return boost::static_pointer_cast<common_behavior::PredicateList >( ptr );\n")
+    s.write("    }\n\n")
+
+    s.write("    virtual void calculatePredicates(const common_behavior::InputDataConstPtr& in_data, const std::vector<RTT::TaskContext*>& components, const std::string& prev_state_name, common_behavior::PredicateListPtr& pred_list) const {\n")
+    s.write("        PredicateListPtr p = boost::static_pointer_cast<PredicateList >( pred_list );\n")
+    s.write("        InputDataConstPtr d = boost::static_pointer_cast<const InputData >( in_data );\n")
+    for pred in sd.predicates:
+        s.write("        p->" + pred + " = pred_" + pred + "(d, components, prev_state_name);\n")
+    s.write("        p->IN_ERROR = false;\n")
+    for st in sd.states:
+        s.write("        p->PREV_STATE_" + st.name + " = (prev_state_name == \"" + package + "_" + st.name + "\");\n")
+    s.write("    }\n\n")
+
+    s.write("    virtual std::string getPredicatesStr(const common_behavior::PredicateListConstPtr& pred_list) const {\n")
+    s.write("        PredicateListConstPtr p = boost::static_pointer_cast<const PredicateList >( pred_list );\n")
+    s.write("        std::string r;\n")
+    for pred in sd.predicates:
+        s.write("        r = r + \"" + pred + ":\" + (p->" + pred + "?\"t\":\"f\") + \", \";\n")
+    s.write("        r = r + \"IN_ERROR:\" + (p->IN_ERROR?\"t\":\"f\") + \", \";\n")
+    for st in sd.states:
+        s.write("        r = r + \"PREV_STATE_" + st.name + ":\" + (p->PREV_STATE_" + st.name + "?\"t\":\"f\") + \", \";\n")
+    s.write("        return r;\n")
+    s.write("    }\n\n")
+
 
     s.write("    // this method is not RT-safe\n")
     s.write("    virtual std::string getErrorReasonStr(common_behavior::AbstractConditionCauseConstPtr error_reason) const {\n")
@@ -263,6 +380,9 @@ def generate_boost_serialization(package, port_def, output_cpp):
     if sd.trigger_gazebo:
         s.write("    RTT::OperationCaller<void()> singleStep_;\n")
 
+    for pred in sd.predicates:
+        s.write("    predicateFunction pred_" + pred + ";\n")
+
     s.write("};\n\n")
 
     s.write("std::string getErrorReasonStr(ErrorCauseConstPtr err) {\n")
@@ -272,7 +392,64 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("    return result;\n")
     s.write("}\n\n")
 
+    for state in sd.states:
+        s.write("class state_" + state.name + " : public common_behavior::StateBase {\n")
+        s.write("public:\n")
+        s.write("    state_" + state.name + "() :\n")
+        s.write("        common_behavior::StateBase(\"" + package + "_" + state.name + "\", \"" + state.name + "\", \"" + package + "_" + state.behavior + "\")\n")
+        s.write("    { }\n\n")
+
+        s.write("    bool checkInitialCondition(const common_behavior::PredicateListConstPtr& pred_list) const {\n")
+        s.write("        PredicateListConstPtr p = boost::static_pointer_cast<const PredicateList >( pred_list );\n")
+        s.write("        return " + logicExprToCpp(state.init_cond, sd.predicates, sd.states) + ";\n")
+        s.write("    }\n")
+        s.write("};\n\n")
+
+
+
+    for b in sd.behaviors:
+
+        s.write("class behavior_" + b.name + " : public common_behavior::BehaviorBase {\n")
+        s.write("public:\n")
+        s.write("    behavior_" + b.name + "() :\n")
+        s.write("        common_behavior::BehaviorBase(\"" + package + "_" + b.name + "\", \"" + b.name + "\")\n")
+        s.write("    {\n")
+        for rc in b.running_components:
+            s.write("        addRunningComponent(\"" + rc + "\");\n")
+        s.write("    }\n\n")
+
+        s.write("    virtual bool checkErrorCondition(const common_behavior::PredicateListConstPtr& pred_list) const {\n")
+        s.write("        PredicateListConstPtr p = boost::static_pointer_cast<const PredicateList >( pred_list );\n")
+        s.write("        return " + logicExprToCpp(b.err_cond, sd.predicates, sd.states) + ";\n")
+        s.write("    }\n\n")
+
+        s.write("    virtual bool checkStopCondition(const common_behavior::PredicateListConstPtr& pred_list) const {\n")
+        s.write("        PredicateListConstPtr p = boost::static_pointer_cast<const PredicateList >( pred_list );\n")
+        s.write("        return " + logicExprToCpp(b.stop_cond, sd.predicates, sd.states) + ";\n")
+        s.write("    }\n")
+        s.write("};\n\n")
+
+
+    s.write("common_behavior::PredicateList& PredicateList::operator=(const common_behavior::PredicateList& arg) {\n")
+    s.write("    const PredicateList* p = dynamic_cast<const PredicateList* >(&arg);\n")
+    for pred in sd.predicates:
+        s.write("    " + pred + " = p->" + pred + ";\n")
+    s.write("    IN_ERROR = p->IN_ERROR;\n")
+    for st in sd.states:
+        s.write("    PREV_STATE_" + st.name + " = p->PREV_STATE_" + st.name + ";\n")
+    s.write("    return *dynamic_cast<common_behavior::PredicateList* >(this);\n")
+    s.write("};\n\n")
+
+
+
     s.write("};  // namespace " + package + "_types\n\n")
+
+    for st in sd.states:
+        s.write("REGISTER_STATE( " + package + "_types::state_" + st.name + " );\n")
+
+    for b in sd.behaviors:
+        s.write("REGISTER_BEHAVIOR( " + package + "_types::behavior_" + b.name + " );\n")
+
 
     s.write("ORO_SERVICE_NAMED_PLUGIN(" + package + "_types::" + package + "_Master, \"" + package + "_master\");\n")
 
