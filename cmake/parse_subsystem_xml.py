@@ -30,11 +30,13 @@ class InputPort:
             self.period_min = float(trigger[0].getAttribute("min"))
             self.period_avg = float(trigger[0].getAttribute("avg"))
             self.period_max = float(trigger[0].getAttribute("max"))
+            self.period_sim_max = float(trigger[0].getAttribute("sim_max"))
         elif len(trigger) == 0:
             self.event = False
             self.period_min = None
             self.period_avg = None
             self.period_max = None
+            self.period_sim_max = None
         else:
             raise Exception('ports in trigger', 'wrong number of <ports> <in> <trigger> tags, should be 0 or 1')
 

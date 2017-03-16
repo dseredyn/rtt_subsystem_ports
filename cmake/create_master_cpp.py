@@ -171,7 +171,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
         s.write("            }\n")
 
     if sd.use_ros_sim_clock:
-        s.write("             rtt_rosclock::use_ros_clock_topic();\n")
+        s.write("            rtt_rosclock::use_ros_clock_topic();\n")
 
 #        s.write("            RTT::Service::shared_ptr rosclock = RTT::internal::GlobalService::Instance()->getService(\"ros\")->getService(\"clock\");\n")
 #
@@ -265,7 +265,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
     for p in sd.ports_in:
         if p.side == 'bottom':
             if p.event:
-                s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.getTypeStr() + "\", \"" + p.alias + "\", true, " + str(p.period_min) + ", " + str(p.period_avg) + ", " + str(p.period_max) + "));\n")
+                s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.getTypeStr() + "\", \"" + p.alias + "\", true, " + str(p.period_min) + ", " + str(p.period_avg) + ", " + str(p.period_max) + ", " + str(p.period_sim_max) + "));\n")
             else:
                 s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
     s.write("    }\n\n")
@@ -275,7 +275,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
     for p in sd.ports_in:
         if p.side == 'top':
             if p.event:
-                s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.getTypeStr() + "\", \"" + p.alias + "\", true, " + str(p.period_min) + ", " + str(p.period_avg) + ", " + str(p.period_max) + "));\n")
+                s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.getTypeStr() + "\", \"" + p.alias + "\", true, " + str(p.period_min) + ", " + str(p.period_avg) + ", " + str(p.period_max) + ", " + str(p.period_sim_max) + "));\n")
             else:
                 s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
     s.write("    }\n\n")
@@ -311,11 +311,6 @@ def generate_boost_serialization(package, port_def, output_cpp):
         s.write("                std::make_pair(std::string(\"" + lc[0] + "\"), std::string(\"" + lc[1] + "\")),\n")
     s.write("            });\n")
     s.write("    }\n\n")
-
-    s.write("    virtual int getInputDataWaitCycles() const {\n")
-    s.write("        return " + str(sd.no_input_wait_cycles) + ";\n")
-    s.write("    }\n\n")
-
 
     s.write("    virtual common_behavior::PredicateListPtr allocatePredicateList() {\n")
     for pred in sd.predicates:
