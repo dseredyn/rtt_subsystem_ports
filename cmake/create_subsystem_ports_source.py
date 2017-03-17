@@ -263,7 +263,7 @@ def write_boost_serialization(s, spec, cpp_name_prefix, file):
             port_spec = port_spec_dict[field.name]
             if port_spec[0] == 'container':
                 if field.is_builtin:
-                    raise
+                    raise Exception('built in type', "field \'" + field.name + "\' is specified as container, but it is built-in type" )
                 s.write('  %s_ = interface_ports::OutputPortInterfaceFactory<%s >::Instance()->Create("%s", tc, prefix + std::string(prefix.empty()?"":"_") + \"%s\");\n'%(field.name, msg_type_to_cpp(field.type)[:-1], field.type, field.name))
             elif port_spec[0] == 'port':
                 s.write('  %s_ = interface_ports::OutputPortInterfaceFactory<%s >::Instance()->Create("%s_%s_%s", tc, prefix + std::string(prefix.empty()?"":"_") + \"%s\");\n'%(field.name, msg_type_to_cpp(field.type), spec.package, spec.short_name, field.name, field.name))
