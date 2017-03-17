@@ -16,15 +16,15 @@ import argparse
 
 import parse_subsystem_xml
 
-def logicExprToCpp(expr, predicates, states):
+def logicExprToCpp(expr, predicates):#, states):
     cpp = expr
 
     predicates_copy = copy.copy(predicates)
     predicates_copy.append("IN_ERROR")
     predicates_copy.append("TRUE")
     predicates_copy.append("FALSE")
-    for st in states:
-        predicates_copy.append("PREV_STATE_" + st.name)
+#    for st in states:
+#        predicates_copy.append("PREV_STATE_" + st.name)
     predicates_sorted = sorted(predicates_copy, key=lambda pred: -len(pred))
 
     pred_id_map = {}
@@ -138,6 +138,68 @@ def generate_boost_serialization(package, port_def, output_cpp):
 
     s.write("\nnamespace " + package + "_types {\n\n")
 
+    #
+    # OutputScope
+    #
+    s.write("class OutputScope : public common_behavior::OutputScopeBase {\n")
+    s.write("public:\n")
+    s.write("    OutputScope() {\n")
+    s.write("        for (int i = 0; i < " + str(len(sd.output_scopes)) + "; ++i){\n")
+    s.write("            s_[i] = false;\n")
+    s.write("        }\n")
+    s.write("    }\n\n")
+
+    s.write("    OutputScope(")
+    sep = ""
+    for sc in sd.output_scopes:
+        s.write(sep + "bool " + sc)
+        sep = ", "
+    s.write(") {\n")
+    counter = 0
+    for sc in sd.output_scopes:
+        s.write("        s_[" + str(counter) + "] = " + sc + ";\n")
+        counter = counter + 1
+    s.write("    }\n\n")
+
+    s.write("    virtual bool isCompatible(common_behavior::OutputScopeBase& other) const {\n")
+    s.write("        OutputScope* o = static_cast<OutputScope* >(&other);\n")
+    s.write("        for (int i = 0; i < " + str(len(sd.output_scopes)) + "; ++i){\n")
+    s.write("            if (s_[i] == true && o->s_[i] == true) {\n")
+    s.write("                return false;\n")
+    s.write("            }\n")
+    s.write("        }\n")
+    s.write("        return true;\n")
+    s.write("    }\n\n")
+
+    s.write("    virtual void add(common_behavior::OutputScopeBase& other) {\n")
+    s.write("        OutputScope* o = static_cast<OutputScope* >(&other);\n")
+    s.write("        for (int i = 0; i < " + str(len(sd.output_scopes)) + "; ++i){\n")
+    s.write("            if (o->s_[i] == true) {\n")
+    s.write("                s_[i] = true;\n")
+    s.write("            }\n")
+    s.write("        }\n")
+    s.write("    }\n\n")
+
+    s.write("    virtual void substract(common_behavior::OutputScopeBase& other) {\n")
+    s.write("        OutputScope* o = static_cast<OutputScope* >(&other);\n")
+    s.write("        for (int i = 0; i < " + str(len(sd.output_scopes)) + "; ++i){\n")
+    s.write("            if (o->s_[i] == true) {\n")
+    s.write("                s_[i] = false;\n")
+    s.write("            }\n")
+    s.write("        }\n")
+    s.write("    }\n\n")
+    
+    s.write("private:\n")
+    s.write("    boost::array<bool, " + str(len(sd.output_scopes)) + " > s_;\n")
+
+    s.write("};\n\n")
+
+    s.write("typedef boost::shared_ptr<OutputScope > OutputScopePtr;\n")
+    s.write("typedef boost::shared_ptr<const OutputScope > OutputScopeConstPtr;\n\n")
+
+    #
+    # _Master
+    #
     s.write("class " + package + "_Master : public common_behavior::MasterService {\n")
     s.write("public:\n")
     s.write("    explicit " + package + "_Master(RTT::TaskContext* owner)\n")
@@ -300,15 +362,16 @@ def generate_boost_serialization(package, port_def, output_cpp):
             s.write("        info.push_back(common_behavior::OutputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
     s.write("    }\n\n")
 
-    s.write("    virtual std::vector<std::string > getStates() const {\n")
+    s.write("    virtual std::vector<std::string > getBehaviors() const {\n")
+    
     s.write("        return std::vector<std::string >({\n")
-    for st in sd.states:
-        s.write("                   \"" + package + "_" + st.name + "\",\n")
+    for b in sd.behaviors:
+        s.write("                   \"" + package + "_" + b.name + "\",\n")
     s.write("                   });\n")
     s.write("    }\n\n")
 
-    s.write("    virtual std::string getInitialState() const {\n")
-    s.write("        return \"" + package + "_" + sd.getInitialStateName() + "\";\n")
+    s.write("    virtual std::vector<std::string > getInitialBehaviors() const {\n")
+    s.write("        return std::vector<std::string >({\"" + package + "_" + sd.getInitialBehaviorName() + "\"});\n")
     s.write("    }\n\n")
 
     s.write("    virtual std::vector<std::pair<std::string, std::string > > getLatchedConnections() const {\n")
@@ -320,7 +383,6 @@ def generate_boost_serialization(package, port_def, output_cpp):
 
     s.write("    virtual common_behavior::PredicateListPtr allocatePredicateList() {\n")
     for pred in sd.predicates:
-#        s.write("        pred_" + pred + " = PredicateFactory::Instance()->getPredicate(\"" + package + "_types::" + pred + "\");\n")
         s.write("        if (!pred_" + pred + ") {\n")
         s.write("            return NULL;\n")
         s.write("        }\n")
@@ -328,14 +390,15 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("        return boost::static_pointer_cast<common_behavior::PredicateList >( ptr );\n")
     s.write("    }\n\n")
 
-    s.write("    virtual void calculatePredicates(const common_behavior::InputDataConstPtr& in_data, const std::vector<RTT::TaskContext*>& components, const std::string& prev_state_name, common_behavior::PredicateListPtr& pred_list) const {\n")
+    s.write("    virtual void calculatePredicates(const common_behavior::InputDataConstPtr& in_data, const std::vector<RTT::TaskContext*>& components, common_behavior::PredicateListPtr& pred_list) const {\n")
     s.write("        PredicateListPtr p = boost::static_pointer_cast<PredicateList >( pred_list );\n")
     s.write("        InputDataConstPtr d = boost::static_pointer_cast<const InputData >( in_data );\n")
     for pred in sd.predicates:
-        s.write("        p->" + pred + " = pred_" + pred + "(d, components, prev_state_name);\n")
+#        s.write("        p->" + pred + " = pred_" + pred + "(d, components, prev_state_name);\n")
+        s.write("        p->" + pred + " = pred_" + pred + "(d, components);\n")
     s.write("        p->IN_ERROR = false;\n")
-    for st in sd.states:
-        s.write("        p->PREV_STATE_" + st.name + " = (prev_state_name == \"" + package + "_" + st.name + "\");\n")
+#    for st in sd.states:
+#        s.write("        p->PREV_STATE_" + st.name + " = (prev_state_name == \"" + package + "_" + st.name + "\");\n")
     s.write("    }\n\n")
 
     s.write("    virtual std::string getPredicatesStr(const common_behavior::PredicateListConstPtr& pred_list) const {\n")
@@ -344,9 +407,15 @@ def generate_boost_serialization(package, port_def, output_cpp):
     for pred in sd.predicates:
         s.write("        r = r + \"" + pred + ":\" + (p->" + pred + "?\"t\":\"f\") + \", \";\n")
     s.write("        r = r + \"IN_ERROR:\" + (p->IN_ERROR?\"t\":\"f\") + \", \";\n")
-    for st in sd.states:
-        s.write("        r = r + \"PREV_STATE_" + st.name + ":\" + (p->PREV_STATE_" + st.name + "?\"t\":\"f\") + \", \";\n")
+#    for st in sd.states:
+#        s.write("        r = r + \"PREV_STATE_" + st.name + ":\" + (p->PREV_STATE_" + st.name + "?\"t\":\"f\") + \", \";\n")
     s.write("        return r;\n")
+    s.write("    }\n\n")
+
+
+    s.write("    virtual common_behavior::OutputScopeBasePtr allocateOutputScope() {\n")
+    s.write("        OutputScopePtr ptr(new OutputScope());\n")
+    s.write("        return boost::static_pointer_cast<common_behavior::OutputScopeBase >( ptr );\n")
     s.write("    }\n\n")
 
 
@@ -394,41 +463,70 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("    return result;\n")
     s.write("}\n\n")
 
-    for state in sd.states:
-        s.write("class state_" + state.name + " : public common_behavior::StateBase {\n")
-        s.write("public:\n")
-        s.write("    state_" + state.name + "() :\n")
-        s.write("        common_behavior::StateBase(\"" + package + "_" + state.name + "\", \"" + state.name + "\", \"" + package + "_" + state.behavior + "\")\n")
-        s.write("    { }\n\n")
-
-        s.write("    bool checkInitialCondition(const common_behavior::PredicateListConstPtr& pred_list) const {\n")
-        s.write("        PredicateListConstPtr p = boost::static_pointer_cast<const PredicateList >( pred_list );\n")
-        s.write("        return " + logicExprToCpp(state.init_cond, sd.predicates, sd.states) + ";\n")
-        s.write("    }\n")
-        s.write("};\n\n")
 
 
+#    for state in sd.states:
+#        s.write("class state_" + state.name + " : public common_behavior::StateBase {\n")
+#        s.write("public:\n")
+#        s.write("    state_" + state.name + "() :\n")
+#        s.write("        common_behavior::StateBase(\"" + package + "_" + state.name + "\", \"" + state.name + "\", \"" + package + "_" + state.behavior + "\")\n")
+#        s.write("    { }\n\n")
 
+#        s.write("    bool checkInitialCondition(const common_behavior::PredicateListConstPtr& pred_list) const {\n")
+#        s.write("        PredicateListConstPtr p = boost::static_pointer_cast<const PredicateList >( pred_list );\n")
+#        s.write("        return " + logicExprToCpp(state.init_cond, sd.predicates, sd.states) + ";\n")
+#        s.write("    }\n")
+#        s.write("};\n\n")
+
+    #
+    # behavior_
+    #
     for b in sd.behaviors:
 
         s.write("class behavior_" + b.name + " : public common_behavior::BehaviorBase {\n")
         s.write("public:\n")
-        s.write("    behavior_" + b.name + "() :\n")
-        s.write("        common_behavior::BehaviorBase(\"" + package + "_" + b.name + "\", \"" + b.name + "\")\n")
+        s.write("    behavior_" + b.name + "()\n")
+        s.write("        : common_behavior::BehaviorBase(\"" + package + "_" + b.name + "\", \"" + b.name + "\")\n")
         s.write("    {\n")
         for rc in b.running_components:
             s.write("        addRunningComponent(\"" + rc + "\");\n")
+
+        s.write("        OutputScopePtr ptr(new OutputScope(")
+        sep = ""
+        for sc in sd.output_scopes:
+            if sc in b.output_scopes:
+                s.write(sep + "true")
+            else:
+                s.write(sep + "false")
+            sep = ", "
+        s.write("));\n")
+        s.write("        os_ = boost::static_pointer_cast<common_behavior::OutputScopeBase >(ptr);\n")
+        s.write("        is_initial_ = " + str(b.is_initial).lower() + ";\n")
+        s.write("    }\n\n")
+
+        s.write("    virtual common_behavior::OutputScopeBaseConstPtr getOutputScope() const {\n")
+        s.write("        return os_;\n")
+        s.write("    }\n\n")
+
+        s.write("    virtual bool checkInitialCondition(const common_behavior::PredicateListConstPtr& pred_list) const {\n")
+        s.write("        PredicateListConstPtr p = boost::static_pointer_cast<const PredicateList >( pred_list );\n")
+#        s.write("        return " + logicExprToCpp(b.err_cond, sd.predicates, sd.states) + ";\n")
+        s.write("        return " + logicExprToCpp(b.init_cond, sd.predicates) + ";\n")
         s.write("    }\n\n")
 
         s.write("    virtual bool checkErrorCondition(const common_behavior::PredicateListConstPtr& pred_list) const {\n")
         s.write("        PredicateListConstPtr p = boost::static_pointer_cast<const PredicateList >( pred_list );\n")
-        s.write("        return " + logicExprToCpp(b.err_cond, sd.predicates, sd.states) + ";\n")
+#        s.write("        return " + logicExprToCpp(b.err_cond, sd.predicates, sd.states) + ";\n")
+        s.write("        return " + logicExprToCpp(b.err_cond, sd.predicates) + ";\n")
         s.write("    }\n\n")
 
         s.write("    virtual bool checkStopCondition(const common_behavior::PredicateListConstPtr& pred_list) const {\n")
         s.write("        PredicateListConstPtr p = boost::static_pointer_cast<const PredicateList >( pred_list );\n")
-        s.write("        return " + logicExprToCpp(b.stop_cond, sd.predicates, sd.states) + ";\n")
+#        s.write("        return " + logicExprToCpp(b.stop_cond, sd.predicates, sd.states) + ";\n")
+        s.write("        return " + logicExprToCpp(b.stop_cond, sd.predicates) + ";\n")
         s.write("    }\n")
+        s.write("private:\n")
+        s.write("    common_behavior::OutputScopeBasePtr os_;\n")
         s.write("};\n\n")
 
 
@@ -437,8 +535,8 @@ def generate_boost_serialization(package, port_def, output_cpp):
     for pred in sd.predicates:
         s.write("    " + pred + " = p->" + pred + ";\n")
     s.write("    IN_ERROR = p->IN_ERROR;\n")
-    for st in sd.states:
-        s.write("    PREV_STATE_" + st.name + " = p->PREV_STATE_" + st.name + ";\n")
+#    for st in sd.states:
+#        s.write("    PREV_STATE_" + st.name + " = p->PREV_STATE_" + st.name + ";\n")
     s.write("    return *dynamic_cast<common_behavior::PredicateList* >(this);\n")
     s.write("};\n\n")
 
@@ -446,8 +544,8 @@ def generate_boost_serialization(package, port_def, output_cpp):
 
     s.write("};  // namespace " + package + "_types\n\n")
 
-    for st in sd.states:
-        s.write("REGISTER_STATE( " + package + "_types::state_" + st.name + " );\n")
+#    for st in sd.states:
+#        s.write("REGISTER_STATE( " + package + "_types::state_" + st.name + " );\n")
 
     for b in sd.behaviors:
         s.write("REGISTER_BEHAVIOR( " + package + "_types::behavior_" + b.name + " );\n")

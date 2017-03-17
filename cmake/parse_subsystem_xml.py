@@ -71,7 +71,22 @@ class OutputPort:
     def getTypeCpp(self):
         return self.type_pkg + "::" + self.type_name
 
-class SubsystemState:
+#class SubsystemState:
+#    def parse(self, xml):
+#        self.name = xml.getAttribute("name")
+#        is_initial = xml.getAttribute("is_initial")
+#        if is_initial:
+#            self.is_initial = str_to_bool(is_initial)
+#        else:
+#            self.is_initial = False
+#        self.behavior = xml.getAttribute("behavior")
+#        self.init_cond = xml.getAttribute("init_cond")
+#
+#    def __init__(self, xml=None):
+#        if xml:
+#            self.parse(xml)
+
+class SubsystemBehavior:
     def parse(self, xml):
         self.name = xml.getAttribute("name")
         is_initial = xml.getAttribute("is_initial")
@@ -79,23 +94,17 @@ class SubsystemState:
             self.is_initial = str_to_bool(is_initial)
         else:
             self.is_initial = False
-        self.behavior = xml.getAttribute("behavior")
         self.init_cond = xml.getAttribute("init_cond")
-
-    def __init__(self, xml=None):
-        if xml:
-            self.parse(xml)
-
-class SubsystemBehavior:
-    def parse(self, xml):
-        self.name = xml.getAttribute("name")
         self.stop_cond = xml.getAttribute("stop_cond")
         self.err_cond = xml.getAttribute("err_cond")
 
         self.running_components = []
-        running_component = xml.getElementsByTagName("running_component")
-        for rc in running_component:
+        for rc in xml.getElementsByTagName("running_component"):
             self.running_components.append( rc.getAttribute("name") )
+
+        self.output_scopes = []
+        for scope in xml.getElementsByTagName("scope"):
+            self.output_scopes.append( scope.getAttribute("name") )
 
     def __init__(self, xml=None):
         if xml:
@@ -107,7 +116,7 @@ class SubsystemDefinition:
         self.ports_out = []
         self.errors = []
         self.predicates = []
-        self.states = []
+#        self.states = []
         self.behaviors = []
         self.period = None
         self.use_ros_sim_clock = False
@@ -115,12 +124,19 @@ class SubsystemDefinition:
         self.use_sim_clock = False
         self.no_input_wait_cycles = 0
         self.latched_components = []
+        self.output_scopes = []
 
-    def getInitialStateName(self):
-        for s in self.states:
-            if s.is_initial:
-                return s.name
-        raise Exception('state.is_initial', 'there is no initial state')
+#    def getInitialStateName(self):
+#        for s in self.states:
+#            if s.is_initial:
+#                return s.name
+#        raise Exception('state.is_initial', 'there is no initial state')
+
+    def getInitialBehaviorName(self):
+        for b in self.behaviors:
+            if b.is_initial:
+                return b.name
+        raise Exception('behavior.is_initial', 'there is no initial behavior')
 
     def parsePorts(self, xml):
         # <in>
@@ -137,16 +153,21 @@ class SubsystemDefinition:
         for p in xml.getElementsByTagName("predicate"):
             self.predicates.append( p.getAttribute("name") )
 
-    def parseStates(self, xml):
-        initial_state = None
-        for s in xml.getElementsByTagName("state"):
-            state = SubsystemState(s)
-            if state.is_initial and not initial_state:
-                initial_state = state.name
-            elif state.is_initial and initial_state:
-                raise Exception('state.is_initial', 'at least two states are marked as initial: ' + initial_state + ", " + state.name)
-            self.states.append( state )
+    def parseOutputScopes(self, xml):
+        for scope in xml.getElementsByTagName("scope"):
+            self.output_scopes.append( scope.getAttribute("name") )
 
+#    def parseStates(self, xml):
+#        initial_state = None
+#        for s in xml.getElementsByTagName("state"):
+#            state = SubsystemState(s)
+#            if state.is_initial and not initial_state:
+#                initial_state = state.name
+#            elif state.is_initial and initial_state:
+#                raise Exception('state.is_initial', 'at least two states are marked as initial: ' + initial_state + ", " + state.name)
+#            self.states.append( state )
+
+    def parseBehaviors(self, xml):
         for b in xml.getElementsByTagName("behavior"):
             behavior = SubsystemBehavior(b)
             self.behaviors.append( behavior )
@@ -174,12 +195,21 @@ class SubsystemDefinition:
 
         self.parsePredicates(predicates[0])
 
-        # <states>
-        states = xml.getElementsByTagName("states")
-        if len(states) != 1:
-            raise Exception('states', 'wrong number of <states> tags, should be 1')
+        # <predicates>
+        output_scopes = xml.getElementsByTagName("output_scopes")
+        if len(output_scopes) != 1:
+            raise Exception('output_scopes', 'wrong number of <output_scopes> tags, should be 1')
 
-        self.parseStates(states[0])
+        self.parseOutputScopes(output_scopes[0])
+        if len(self.output_scopes) == 0:
+            raise Exception('output_scopes', 'wrong number of <scope> tags in <output_scopes>, should be at least 1')
+
+        # <behaviors>
+        behaviors = xml.getElementsByTagName("behaviors")
+        if len(behaviors) != 1:
+            raise Exception('behaviors', 'wrong number of <behaviors> tags, should be 1')
+
+        self.parseBehaviors(behaviors[0])
 
         #
         # <activity>
