@@ -161,8 +161,8 @@ def generate_boost_serialization(package, port_def, output_cpp):
         counter = counter + 1
     s.write("    }\n\n")
 
-    s.write("    virtual bool isCompatible(common_behavior::OutputScopeBase& other) const {\n")
-    s.write("        OutputScope* o = static_cast<OutputScope* >(&other);\n")
+    s.write("    virtual bool isCompatible(const common_behavior::OutputScopeBase& other) const {\n")
+    s.write("        const OutputScope* o = dynamic_cast<const OutputScope* >(&other);\n")
     s.write("        for (int i = 0; i < " + str(len(sd.output_scopes)) + "; ++i){\n")
     s.write("            if (s_[i] == true && o->s_[i] == true) {\n")
     s.write("                return false;\n")
@@ -171,8 +171,8 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("        return true;\n")
     s.write("    }\n\n")
 
-    s.write("    virtual void add(common_behavior::OutputScopeBase& other) {\n")
-    s.write("        OutputScope* o = static_cast<OutputScope* >(&other);\n")
+    s.write("    virtual void add(const common_behavior::OutputScopeBase& other) {\n")
+    s.write("        const OutputScope* o = dynamic_cast<const OutputScope* >(&other);\n")
     s.write("        for (int i = 0; i < " + str(len(sd.output_scopes)) + "; ++i){\n")
     s.write("            if (o->s_[i] == true) {\n")
     s.write("                s_[i] = true;\n")
@@ -180,8 +180,8 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("        }\n")
     s.write("    }\n\n")
 
-    s.write("    virtual void substract(common_behavior::OutputScopeBase& other) {\n")
-    s.write("        OutputScope* o = static_cast<OutputScope* >(&other);\n")
+    s.write("    virtual void substract(const common_behavior::OutputScopeBase& other) {\n")
+    s.write("        const OutputScope* o = dynamic_cast<const OutputScope* >(&other);\n")
     s.write("        for (int i = 0; i < " + str(len(sd.output_scopes)) + "; ++i){\n")
     s.write("            if (o->s_[i] == true) {\n")
     s.write("                s_[i] = false;\n")
@@ -189,6 +189,19 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("        }\n")
     s.write("    }\n\n")
     
+    s.write("    virtual int getMaxCount() const {\n")
+    s.write("        return " + str(len(sd.output_scopes)) + ";\n")
+    s.write("    }\n\n")
+
+    s.write("    virtual bool isComplete() const {\n")
+    s.write("        for (int i = 0; i < " + str(len(sd.output_scopes)) + "; ++i){\n")
+    s.write("            if (!s_[i]) {\n")
+    s.write("                return false;\n")
+    s.write("            }\n")
+    s.write("        }\n")
+    s.write("        return true;\n")
+    s.write("    }\n\n")
+
     s.write("private:\n")
     s.write("    boost::array<bool, " + str(len(sd.output_scopes)) + " > s_;\n")
 
@@ -415,7 +428,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
 
     s.write("    virtual common_behavior::OutputScopeBasePtr allocateOutputScope() {\n")
     s.write("        OutputScopePtr ptr(new OutputScope());\n")
-    s.write("        return boost::static_pointer_cast<common_behavior::OutputScopeBase >( ptr );\n")
+    s.write("        return boost::dynamic_pointer_cast<common_behavior::OutputScopeBase >( ptr );\n")
     s.write("    }\n\n")
 
 
@@ -500,7 +513,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
                 s.write(sep + "false")
             sep = ", "
         s.write("));\n")
-        s.write("        os_ = boost::static_pointer_cast<common_behavior::OutputScopeBase >(ptr);\n")
+        s.write("        os_ = boost::dynamic_pointer_cast<common_behavior::OutputScopeBase >(ptr);\n")
         s.write("        is_initial_ = " + str(b.is_initial).lower() + ";\n")
         s.write("    }\n\n")
 
