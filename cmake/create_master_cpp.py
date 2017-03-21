@@ -23,6 +23,8 @@ def logicExprToCpp(expr, predicates):#, states):
     predicates_copy.append("IN_ERROR")
     predicates_copy.append("TRUE")
     predicates_copy.append("FALSE")
+    predicates_copy.append("CURRENT_BEHAVIOR_OK")
+
 #    for st in states:
 #        predicates_copy.append("PREV_STATE_" + st.name)
     predicates_sorted = sorted(predicates_copy, key=lambda pred: -len(pred))
@@ -410,6 +412,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
 #        s.write("        p->" + pred + " = pred_" + pred + "(d, components, prev_state_name);\n")
         s.write("        p->" + pred + " = pred_" + pred + "(d, components);\n")
     s.write("        p->IN_ERROR = false;\n")
+    s.write("        p->CURRENT_BEHAVIOR_OK = false;\n")
 #    for st in sd.states:
 #        s.write("        p->PREV_STATE_" + st.name + " = (prev_state_name == \"" + package + "_" + st.name + "\");\n")
     s.write("    }\n\n")
@@ -420,6 +423,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
     for pred in sd.predicates:
         s.write("        r = r + \"" + pred + ":\" + (p->" + pred + "?\"t\":\"f\") + \", \";\n")
     s.write("        r = r + \"IN_ERROR:\" + (p->IN_ERROR?\"t\":\"f\") + \", \";\n")
+    s.write("        r = r + \"CURRENT_BEHAVIOR_OK:\" + (p->CURRENT_BEHAVIOR_OK?\"t\":\"f\") + \", \";\n")
 #    for st in sd.states:
 #        s.write("        r = r + \"PREV_STATE_" + st.name + ":\" + (p->PREV_STATE_" + st.name + "?\"t\":\"f\") + \", \";\n")
     s.write("        return r;\n")
@@ -429,19 +433,6 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("    virtual common_behavior::OutputScopeBasePtr allocateOutputScope() {\n")
     s.write("        OutputScopePtr ptr(new OutputScope());\n")
     s.write("        return boost::dynamic_pointer_cast<common_behavior::OutputScopeBase >( ptr );\n")
-    s.write("    }\n\n")
-
-
-    s.write("    // this method is not RT-safe\n")
-    s.write("    virtual std::string getErrorReasonStr(common_behavior::AbstractConditionCauseConstPtr error_reason) const {\n")
-    s.write("        ErrorCauseConstPtr r = boost::dynamic_pointer_cast<const ErrorCause >(error_reason);\n")
-    s.write("        return " + package + "_types::getErrorReasonStr(r);\n")
-    s.write("    }\n\n")
-
-    s.write("    // this method is not RT-safe\n")
-    s.write("    virtual common_behavior::AbstractConditionCausePtr getErrorReasonSample() const {\n")
-    s.write("        ErrorCausePtr ptr(new ErrorCause());\n")
-    s.write("        return boost::dynamic_pointer_cast<common_behavior::AbstractConditionCause >( ptr );\n")
     s.write("    }\n\n")
 
     s.write("    virtual void iterationEnd() {\n")
@@ -468,28 +459,6 @@ def generate_boost_serialization(package, port_def, output_cpp):
         s.write("    predicateFunction pred_" + pred + ";\n")
 
     s.write("};\n\n")
-
-    s.write("std::string getErrorReasonStr(ErrorCauseConstPtr err) {\n")
-    s.write("    std::string result;\n")
-    for e in sd.errors:
-        s.write("    result += (err->getBit(" + e + "_bit)?\"" + e + " \":\"\");\n")
-    s.write("    return result;\n")
-    s.write("}\n\n")
-
-
-
-#    for state in sd.states:
-#        s.write("class state_" + state.name + " : public common_behavior::StateBase {\n")
-#        s.write("public:\n")
-#        s.write("    state_" + state.name + "() :\n")
-#        s.write("        common_behavior::StateBase(\"" + package + "_" + state.name + "\", \"" + state.name + "\", \"" + package + "_" + state.behavior + "\")\n")
-#        s.write("    { }\n\n")
-
-#        s.write("    bool checkInitialCondition(const common_behavior::PredicateListConstPtr& pred_list) const {\n")
-#        s.write("        PredicateListConstPtr p = boost::static_pointer_cast<const PredicateList >( pred_list );\n")
-#        s.write("        return " + logicExprToCpp(state.init_cond, sd.predicates, sd.states) + ";\n")
-#        s.write("    }\n")
-#        s.write("};\n\n")
 
     #
     # behavior_
@@ -548,6 +517,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
     for pred in sd.predicates:
         s.write("    " + pred + " = p->" + pred + ";\n")
     s.write("    IN_ERROR = p->IN_ERROR;\n")
+    s.write("    CURRENT_BEHAVIOR_OK = p->CURRENT_BEHAVIOR_OK;\n")
 #    for st in sd.states:
 #        s.write("    PREV_STATE_" + st.name + " = p->PREV_STATE_" + st.name + ";\n")
     s.write("    return *dynamic_cast<common_behavior::PredicateList* >(this);\n")

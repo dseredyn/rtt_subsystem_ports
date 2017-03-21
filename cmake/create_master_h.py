@@ -39,7 +39,6 @@ def generate_boost_serialization(package, port_def, output_cpp):
 
     s.write("#include \"common_behavior/input_data.h\"\n")
     s.write("#include \"common_behavior/abstract_behavior.h\"\n")
-#    s.write("#include \"common_behavior/abstract_state.h\"\n\n")
     s.write("#include \"common_behavior/abstract_predicate_list.h\"\n\n")
 
 
@@ -86,12 +85,6 @@ def generate_boost_serialization(package, port_def, output_cpp):
     for e in sd.errors:
         s.write("  " + e + "_bit,\n")
     s.write("  ERROR_ENUM_SIZE\n};\n\n")
-
-    s.write("typedef common_behavior::ConditionCause<ERROR_ENUM_SIZE > ErrorCause;\n")
-    s.write("typedef boost::shared_ptr<ErrorCause > ErrorCausePtr;\n")
-    s.write("typedef boost::shared_ptr<const ErrorCause > ErrorCauseConstPtr;\n\n")
-
-    s.write("std::string getErrorReasonStr(ErrorCauseConstPtr err);\n\n")
 
     #
     # predicate function prototype
