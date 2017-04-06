@@ -293,17 +293,15 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("    virtual ~" + package + "_Master() {\n")
     s.write("    }\n\n")
 
-    s.write("    virtual void initBuffers(common_behavior::InputDataPtr& in_data) const {\n")
+    s.write("    virtual void initBuffersData(common_behavior::InputDataPtr& in_data) const {\n")
     s.write("        boost::shared_ptr<InputData > in = boost::static_pointer_cast<InputData >(in_data);\n")
     for p_in in sd.ports_in:
         s.write("        in->" + p_in.alias + " = " + p_in.getTypeCpp() + "();\n")
     s.write("    }\n\n")
 
-    s.write("    virtual void readIpcPorts(common_behavior::InputDataPtr& in_data) {\n")
+    s.write("    virtual void readBuffers(common_behavior::InputDataPtr& in_data) {\n")
     s.write("        boost::shared_ptr<InputData > in = boost::static_pointer_cast<InputData >(in_data);\n")
     for p_in in sd.ports_in:
-        if not p_in.ipc:
-            continue
         no_data_max = 50
         if p_in.event:
             no_data_max = 0
@@ -319,16 +317,6 @@ def generate_boost_serialization(package, port_def, output_cpp):
         s.write("        else {\n")
         s.write("            " + p_in.alias + "_no_data_counter_ = 0;\n")
         s.write("            " + p_in.alias + "_prev_ = in->" + p_in.alias + ";\n")
-        s.write("        }\n")
-    s.write("    }\n\n")
-
-    s.write("    virtual void readInternalPorts(common_behavior::InputDataPtr& in_data) {\n")
-    s.write("        boost::shared_ptr<InputData > in = boost::static_pointer_cast<InputData >(in_data);\n")
-    for p_in in sd.ports_in:
-        if p_in.ipc:
-            continue
-        s.write("        if (port_" + p_in.alias + "_in_.read(in->" + p_in.alias + ", false) != RTT::NewData) {\n")
-        s.write("            in->" + p_in.alias + " = " + p_in.getTypeCpp() + "();\n")
         s.write("        }\n")
     s.write("    }\n\n")
 
@@ -351,10 +339,10 @@ def generate_boost_serialization(package, port_def, output_cpp):
         if p.side == 'bottom':
 # TODO: verify this
             if p.event:
-                s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.getTypeStr() + "\", \"" + p.alias + "\", true, " + str(p.period_min) + ", " + str(p.period_avg) + ", " + str(p.period_max) + ", " + str(p.period_sim_max) + "));\n")
+                s.write("        info.push_back(common_behavior::InputBufferInfo(\"" + p.getTypeStr() + "\", \"" + p.alias + "\", true, " + str(p.period_min) + ", " + str(p.period_avg) + ", " + str(p.period_max) + ", " + str(p.period_sim_max) + "));\n")
             else:
-                s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
-#            s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
+                s.write("        info.push_back(common_behavior::InputBufferInfo(\"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
+#            s.write("        info.push_back(common_behavior::InputBufferInfo(\"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
     s.write("    }\n\n")
 
     s.write("    virtual void getUpperInputBuffers(std::vector<common_behavior::InputBufferInfo >& info) const {\n")
@@ -363,24 +351,24 @@ def generate_boost_serialization(package, port_def, output_cpp):
         if p.side == 'top':
 # TODO: verify this
             if p.event:
-                s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.getTypeStr() + "\", \"" + p.alias + "\", true, " + str(p.period_min) + ", " + str(p.period_avg) + ", " + str(p.period_max) + ", " + str(p.period_sim_max) + "));\n")
+                s.write("        info.push_back(common_behavior::InputBufferInfo(\"" + p.getTypeStr() + "\", \"" + p.alias + "\", true, " + str(p.period_min) + ", " + str(p.period_avg) + ", " + str(p.period_max) + ", " + str(p.period_sim_max) + "));\n")
             else:
-                s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
-#            s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
+                s.write("        info.push_back(common_behavior::InputBufferInfo(\"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
+#            s.write("        info.push_back(common_behavior::InputBufferInfo(\"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
     s.write("    }\n\n")
 
     s.write("    virtual void getLowerOutputBuffers(std::vector<common_behavior::OutputBufferInfo >& info) const {\n")
     s.write("        info = std::vector<common_behavior::OutputBufferInfo >();\n")
     for p in sd.ports_out:
         if p.side == 'bottom':
-            s.write("        info.push_back(common_behavior::OutputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
+            s.write("        info.push_back(common_behavior::OutputBufferInfo(\"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
     s.write("    }\n\n")
 
     s.write("    virtual void getUpperOutputBuffers(std::vector<common_behavior::OutputBufferInfo >& info) const {\n")
     s.write("        info = std::vector<common_behavior::OutputBufferInfo >();\n")
     for p in sd.ports_out:
         if p.side == 'top':
-            s.write("        info.push_back(common_behavior::OutputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
+            s.write("        info.push_back(common_behavior::OutputBufferInfo(\"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
     s.write("    }\n\n")
 
     s.write("    virtual std::vector<std::string > getBehaviors() const {\n")
