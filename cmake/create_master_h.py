@@ -79,14 +79,6 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("typedef boost::shared_ptr<const PredicateList > PredicateListConstPtr;\n\n")
 
     #
-    # errors
-    #
-    s.write("enum {\n")
-    for e in sd.errors:
-        s.write("  " + e + "_bit,\n")
-    s.write("  ERROR_ENUM_SIZE\n};\n\n")
-
-    #
     # predicate function prototype
     #
 

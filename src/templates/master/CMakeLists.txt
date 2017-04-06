@@ -60,11 +60,13 @@ set(PORT_DEF_FILE ${PROJECT_SOURCE_DIR}/master/ports.xml)
 set(CREATE_MASTER_CPP_EXE_PATH ${rtt_subsystem_ports_DIR}/create_master_cpp.py)
 set(CREATE_MASTER_H_EXE_PATH ${rtt_subsystem_ports_DIR}/create_master_h.py)
 set(CREATE_SUBSYSTEM_INPUT_BUFFERS_EXE_PATH ${rtt_subsystem_ports_DIR}/create_subsystem_input_buffers.py)
+set(CREATE_SUBSYSTEM_OUTPUT_BUFFERS_EXE_PATH ${rtt_subsystem_ports_DIR}/create_subsystem_output_buffers.py)
 
 set(MASTER_H_OUTPUT ${rtt_master_GENERATED_HEADERS_OUTPUT_DIRECTORY}/orocos/${_package}/master.h)
 set(MASTER_CPP_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/master.cpp)
 #set(MASTER_LIBRARY_CPP_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/master_library.cpp)
 set(SUBSYSTEM_INPUT_BUFFERS_CPP_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/input_buffers.cpp)
+set(SUBSYSTEM_OUTPUT_BUFFERS_CPP_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/output_buffers.cpp)
 
 
 #get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
@@ -102,16 +104,25 @@ add_custom_command(
   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
   DEPENDS ${PORT_DEF_FILE} ${${_package}_EXPORTED_TARGETS} ${CREATE_SUBSYSTEM_INPUT_BUFFERS_EXE_PATH}
   VERBATIM)
-list(APPEND subsystem_input_buffers-${_package}-library_SOURCES ${SUBSYSTEM_INPUT_BUFFERS_CPP_OUTPUT} )
+list(APPEND subsystem_buffers-${_package}-library_SOURCES ${SUBSYSTEM_INPUT_BUFFERS_CPP_OUTPUT} )
 add_file_dependencies(${SUBSYSTEM_INPUT_BUFFERS_CPP_OUTPUT} ${CMAKE_CURRENT_LIST_FILE} ${MASTER_H_OUTPUT})
+
+add_custom_command(
+  OUTPUT ${SUBSYSTEM_OUTPUT_BUFFERS_CPP_OUTPUT}
+  COMMAND ${CREATE_SUBSYSTEM_OUTPUT_BUFFERS_EXE_PATH} ${_package} ${PORT_DEF_FILE} ${SUBSYSTEM_OUTPUT_BUFFERS_CPP_OUTPUT}
+  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+  DEPENDS ${PORT_DEF_FILE} ${${_package}_EXPORTED_TARGETS} ${CREATE_SUBSYSTEM_OUTPUT_BUFFERS_EXE_PATH}
+  VERBATIM)
+list(APPEND subsystem_buffers-${_package}-library_SOURCES ${SUBSYSTEM_OUTPUT_BUFFERS_CPP_OUTPUT} )
+add_file_dependencies(${SUBSYSTEM_OUTPUT_BUFFERS_CPP_OUTPUT} ${CMAKE_CURRENT_LIST_FILE} ${MASTER_H_OUTPUT})
 
 configure_file(
   component.cpp.in
   ${CMAKE_CURRENT_BINARY_DIR}/${_package}_component.cpp @ONLY )
-list(APPEND subsystem_input_buffers-${_package}-library_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${_package}_component.cpp )
+list(APPEND subsystem_buffers-${_package}-library_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${_package}_component.cpp )
 
-orocos_component(subsystem_input_buffers-${_package} ${subsystem_input_buffers-${_package}-library_SOURCES})
-target_link_libraries(subsystem_input_buffers-${_package} ${catkin_LIBRARIES} ${${_package}_LIBRARIES} ${USE_OROCOS_LIBRARIES})
+orocos_component(subsystem_buffers-${_package} ${subsystem_buffers-${_package}-library_SOURCES})
+target_link_libraries(subsystem_buffers-${_package} ${catkin_LIBRARIES} ${${_package}_LIBRARIES} ${USE_OROCOS_LIBRARIES})
 
 
 

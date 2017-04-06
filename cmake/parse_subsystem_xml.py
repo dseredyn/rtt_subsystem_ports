@@ -23,22 +23,6 @@ class InputPort:
         self.type_name = type_s[1]
         self.side = str_to_side(xml.getAttribute("side"))
 
-        trigger = xml.getElementsByTagName('tgr')
-        if len(trigger) == 1:
-            self.event = True
-            self.period_min = float(trigger[0].getAttribute("min"))
-            self.period_avg = float(trigger[0].getAttribute("avg"))
-            self.period_max = float(trigger[0].getAttribute("max"))
-            self.period_sim_max = float(trigger[0].getAttribute("sim_max"))
-        elif len(trigger) == 0:
-            self.event = False
-            self.period_min = None
-            self.period_avg = None
-            self.period_max = None
-            self.period_sim_max = None
-        else:
-            raise Exception('ports in trigger', 'wrong number of <ports> <in> <trigger> tags, should be 0 or 1')
-
     def __init__(self, xml=None):
         if xml:
             self.parse(xml)
@@ -108,44 +92,89 @@ class SubsystemBehavior:
         if xml:
             self.parse(xml)
 
-class Trigger:
+class Trigger(object):
+    def __init__(self, trigger_type):
+        self.trigger_type = trigger_type
+
+class TriggerOnNewData(Trigger):
+    def __init__(self, xml):
+        super(TriggerOnNewData, self).__init__("new_data_on_buffer")
+        self.name = xml.getAttribute("name")
+        self.min = float(xml.getAttribute("min"))
+
+class TriggerOnNoData(Trigger):
+    def __init__(self, xml):
+        super(TriggerOnNoData, self).__init__("no_data_on_buffer")
+        self.name = xml.getAttribute("name")
+        self.first_timeout = float(xml.getAttribute("first_timeout"))
+        self.next_timeout = float(xml.getAttribute("next_timeout"))
+        self.first_timeout_sim = float(xml.getAttribute("first_timeout_sim"))
+
+class TriggerOnPeriod(Trigger):
+    def __init__(self, xml):
+        super(TriggerOnPeriod, self).__init__("period")
+        self.value = float(xml.getAttribute("value"))
+
+class TriggerMethods:
     def parse(self, xml):
-        buf = xml.getElementsByTagName('buffer')
+        new_data_on_buffer = xml.getElementsByTagName('new_data_on_buffer')
+        no_data_on_buffer = xml.getElementsByTagName('no_data_on_buffer')
         period = xml.getElementsByTagName('period')
 
-        if len(buf) == 1:
-            self.period_min = float(buf[0].getAttribute("min"))
-            self.period_avg = float(buf[0].getAttribute("avg"))
-            self.period_max = float(buf[0].getAttribute("max"))
-            self.period_sim_max = float(buf[0].getAttribute("sim_max"))
-            on_buf = buf[0].getElementsByTagName('on_buffer')
-            if len(on_buf) == 0:
-                raise Exception('on_buffer', 'wrong number of <on_buffer> tags, should be at least 1')
-            self.buffer_aliases = []
-            for b in on_buf:
-                self.buffer_aliases.append(b.getAttribute("name"))
-        elif len(period) == 1:
-            self.period = float(period[0].getAttribute("p"))
-        else:
-            raise Exception('trigger', 'wrong number of <buffer> and <period> tags, should be exactly one of them')
+        if not (len(period) == 0 or len(period) == 1):
+            raise Exception('period', 'wrong number of <period> tags in <trigger_methods>, should be 0 or 1')
+
+        if len(new_data_on_buffer) + len(no_data_on_buffer) + len(period) == 0:
+            raise Exception('<trigger_methods>', 'at least one trigger method should be specified')
+
+        for m in new_data_on_buffer:
+            if not self.new_data:
+                self.new_data = []
+            self.new_data.append( TriggerOnNewData(m) )
+
+        for m in no_data_on_buffer:
+            if not self.no_data:
+                self.no_data = []
+            self.no_data.append( TriggerOnNoData(m) )
+
+        if len(period) == 1:
+            self.period = TriggerOnPeriod(period[0])
 
     def __init__(self, xml=None):
-        self.buffer_aliases = None
-        self.period_min = None
-        self.period_avg = None
-        self.period_max = None
-        self.period_sim_max = None
-
+        self.new_data = None
+        self.no_data = None
         self.period = None
         if xml:
             self.parse(xml)
+
+    def onNewData(self, alias=None):
+        if not self.new_data:
+            return None
+        if not alias:
+            return self.new_data
+        for t in self.new_data:
+            if t.name == alias:
+                return t
+        return None
+
+    def onNoData(self, alias=None):
+        if not self.no_data:
+            return None
+        if not alias:
+            return self.no_data
+        for t in self.no_data:
+            if t.name == alias:
+                return t
+        return None
+
+    def onPeriod(self):
+        return self.period
 
 class SubsystemDefinition:
     def __init__(self):
         self.ports_in = []
         self.ports_out = []
-        self.trigger = None
-        self.errors = []
+        self.trigger_methods = None
         self.predicates = []
 #        self.states = []
         self.behaviors = []
@@ -203,8 +232,8 @@ class SubsystemDefinition:
             behavior = SubsystemBehavior(b)
             self.behaviors.append( behavior )
 
-    def parseTrigger(self, xml):
-        self.trigger = Trigger(xml)
+    def parseTriggerMethods(self, xml):
+        self.trigger_methods = TriggerMethods(xml)
 
     def parse(self, xml):
         # <buffers>
@@ -214,19 +243,11 @@ class SubsystemDefinition:
         self.parseBuffers(buffers[0])
 
         # <trigger>
-        trigger = xml.getElementsByTagName("trigger")
-        if len(trigger) != 1:
-            raise Exception('trigger', 'wrong number of <trigger> tags, should be 1')
-        self.parseTrigger(trigger[0])
+        trigger_methods = xml.getElementsByTagName("trigger_methods")
+        if len(trigger_methods) != 1:
+            raise Exception('trigger_methods', 'wrong number of <trigger_methods> tags, should be 1')
+        self.parseTriggerMethods(trigger_methods[0])
             
-        # <errors>
-        errors = xml.getElementsByTagName("errors")
-        if len(errors) != 1:
-            raise Exception('errors', 'wrong number of <errors> tags, should be 1')
-        err = errors[0].getElementsByTagName("err")
-        for e in err:
-            self.errors.append( e.getAttribute("name") )
-
         # <predicates>
         predicates = xml.getElementsByTagName("predicates")
         if len(predicates) != 1:
@@ -249,17 +270,6 @@ class SubsystemDefinition:
             raise Exception('behaviors', 'wrong number of <behaviors> tags, should be 1')
 
         self.parseBehaviors(behaviors[0])
-
-        #
-        # <activity>
-        #
-# TODO:
-        activity = xml.getElementsByTagName("activity")
-        if len(activity) == 1:
-            period = activity[0].getAttribute("period")
-            if not period:
-                raise Exception('period', '<activity> tag must contain period attribute')
-            self.period = float(period)
 
         #
         # <simulation>

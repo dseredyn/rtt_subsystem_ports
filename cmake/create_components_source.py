@@ -168,7 +168,7 @@ def write_boost_serialization(s, spec, cpp_name_prefix, file):
     s.write('namespace %s {\n\n'%(spec.package))
     s.write('typedef MessageConcate<%s_InputPorts > %sConcate;\n'%(spec.short_name, spec.short_name))
     s.write('typedef MessageSplit<%s_OutputPorts > %sSplit;\n'%(spec.short_name, spec.short_name))
-    s.write('typedef InterfaceTx<%s > %sTx;\n'%(spec.short_name, spec.short_name))
+#    s.write('typedef InterfaceTx<%s > %sTx;\n'%(spec.short_name, spec.short_name))
     s.write('typedef InterfaceRx<%s > %sRx;\n'%(spec.short_name, spec.short_name))
     s.write('} // namespace %s\n\n'%(spec.package))
 
@@ -178,8 +178,8 @@ def write_boost_serialization(s, spec, cpp_name_prefix, file):
     s.write('typedef %s::%sSplit %s_%sSplit;\n'%(spec.package, spec.short_name, spec.package, spec.short_name))
     s.write('ORO_LIST_COMPONENT_TYPE(%s_%sSplit)\n'%(spec.package, spec.short_name))
 
-    s.write('typedef %s::%sTx %s_%sTx;\n'%(spec.package, spec.short_name, spec.package, spec.short_name))
-    s.write('ORO_LIST_COMPONENT_TYPE(%s_%sTx)\n'%(spec.package, spec.short_name))
+#    s.write('typedef %s::%sTx %s_%sTx;\n'%(spec.package, spec.short_name, spec.package, spec.short_name))
+#    s.write('ORO_LIST_COMPONENT_TYPE(%s_%sTx)\n'%(spec.package, spec.short_name))
 
     s.write('typedef %s::%sRx %s_%sRx;\n'%(spec.package, spec.short_name, spec.package, spec.short_name))
     s.write('ORO_LIST_COMPONENT_TYPE(%s_%sRx)\n'%(spec.package, spec.short_name))

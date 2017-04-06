@@ -64,11 +64,11 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("        , trigger_out_(\"trigger_OUTPORT\")\n")
 #    s.write("        , event_(false)
 #TODO:
-    if sd.trigger.buffer_aliases:
-        s.write("        , period_min_(" + str(sd.trigger.period_min) + ")\n")
-        s.write("        , period_avg_(" + str(sd.trigger.period_avg) + ")\n")
-        s.write("        , period_max_(" + str(sd.trigger.period_max) + ")\n")
-        s.write("        , period_sim_max_(" + str(sd.trigger.period_sim_max) + ")\n")
+#    if sd.trigger.buffer_aliases:
+#        s.write("        , period_min_(" + str(sd.trigger.period_min) + ")\n")
+#        s.write("        , period_avg_(" + str(sd.trigger.period_avg) + ")\n")
+#        s.write("        , period_max_(" + str(sd.trigger.period_max) + ")\n")
+#        s.write("        , period_sim_max_(" + str(sd.trigger.period_sim_max) + ")\n")
     s.write("    {\n")
     for p in sd.ports_in:
         s.write("        this->ports()->addPort(port_" + p.alias + "_out_);\n")
@@ -237,135 +237,97 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("    }\n\n")
 
     s.write("    void updateHook() {\n")
-    s.write("        // get update time\n")
-    s.write("        ros::Time update_time = rtt_rosclock::host_now();\n")
-    s.write("        timespec ts;\n")
-    s.write("        clock_gettime(CLOCK_REALTIME, &ts);\n")
-    s.write("        int read_status;\n")
+#    s.write("        // get update time\n")
+#    s.write("        ros::Time update_time = rtt_rosclock::host_now();\n")
+#    s.write("        timespec ts;\n")
+#    s.write("        clock_gettime(CLOCK_REALTIME, &ts);\n")
+#    s.write("        int read_status;\n")
 
-    if sd.trigger.buffer_aliases:
-        s.write("        double timeout_s;\n")
-        s.write("        if (last_read_successful_) {\n")
-        s.write("            timeout_s = period_max_;\n")
-        s.write("        }\n")
-        s.write("        else {\n")
-        s.write("            timeout_s = period_avg_;\n")
-        s.write("        }\n")
-        s.write("        int timeout_sec = (int)timeout_s;\n")
-        s.write("        int timeout_nsec = (int)((timeout_s - (double)timeout_sec) * 1000000000.0);\n")
-        s.write("        ts.tv_sec += timeout_sec;\n")
-        s.write("        ts.tv_nsec += timeout_nsec;\n")
-        s.write("        if (ts.tv_nsec >= 1000000000) {\n")
-        s.write("            ts.tv_nsec -= 1000000000;\n")
-        s.write("            ++ts.tv_sec;\n")
-        s.write("        }\n")
-        s.write("        int usleep_time = 0;\n")
-        for p in sd.ports_in:
-            if p.alias in sd.trigger.buffer_aliases:
-                s.write("      {\n")
-                s.write("        void *pbuf = NULL;\n")
-                s.write("        " + p.getTypeCpp() + " *buf = NULL;\n")
-                s.write("        read_status = shm_reader_buffer_timedwait(re_" + p.alias + "_, &ts, &pbuf);\n")
-                s.write("        ros::Time read_time = rtt_rosclock::host_now();\n")
-                s.write("        double read_interval = (read_time - update_time).toSec();\n")
-                s.write("        if (read_status == SHM_TIMEOUT) {\n")
-                s.write("            diag_buf_valid_ = false;\n")
-                s.write("            last_read_successful_ = false;\n")
-                s.write("            // do not wait\n")
-                s.write("        }\n")
-                s.write("        else if (read_status == 0 && ((buf = reinterpret_cast<" + p.getTypeCpp() + "*>( pbuf )) != buf_prev_" + p.alias + "_)) {\n")
-                s.write("            diag_buf_valid_ = true;\n")
-                s.write("            last_read_successful_ = true;\n")
-                s.write("            // save the pointer of buffer\n")
-                s.write("            buf_prev_" + p.alias + "_ = buf;\n")
-                s.write("            port_" + p.alias + "_out_.write(*buf);\n")
-                s.write("            if (read_interval < period_min_) {\n")
-                s.write("                usleep_time = int((period_min_ - read_interval)*1000000.0);\n")
-                s.write("            }\n")
-                s.write("        }\n")
-                s.write("        else if (read_status > 0) {\n")
-                s.write("            diag_buf_valid_ = false;\n")
-                s.write("            last_read_successful_ = false;\n")
-                s.write("            if (read_interval < period_avg_) {\n")
-                s.write("                usleep_time = int((period_avg_ - read_interval)*1000000.0);\n")
-                s.write("            }\n")
-                s.write("        }\n")
-                s.write("        else {\n")
-                s.write("            diag_buf_valid_ = false;\n")
-                s.write("            Logger::log() << Logger::Error << getName() << \" shm_reader_buffer_timedwait(" + p.alias + ") status: \" << read_status << Logger::endl;\n")
-                s.write("            error();\n")
-                s.write("            return;\n")
-                s.write("        }\n")
-                s.write("      }\n")
+#    if sd.trigger.buffer_aliases:
+#        s.write("        double timeout_s;\n")
+#        s.write("        if (last_read_successful_) {\n")
+#        s.write("            timeout_s = period_max_;\n")
+#        s.write("        }\n")
+#        s.write("        else {\n")
+#        s.write("            timeout_s = period_avg_;\n")
+#        s.write("        }\n")
+#        s.write("        int timeout_sec = (int)timeout_s;\n")
+#        s.write("        int timeout_nsec = (int)((timeout_s - (double)timeout_sec) * 1000000000.0);\n")
+#        s.write("        ts.tv_sec += timeout_sec;\n")
+#        s.write("        ts.tv_nsec += timeout_nsec;\n")
+#        s.write("        if (ts.tv_nsec >= 1000000000) {\n")
+#        s.write("            ts.tv_nsec -= 1000000000;\n")
+#        s.write("            ++ts.tv_sec;\n")
+#        s.write("        }\n")
+#        s.write("        int usleep_time = 0;\n")
+#        for p in sd.ports_in:
+#            if p.alias in sd.trigger.buffer_aliases:
+#                s.write("      {\n")
+#                s.write("        void *pbuf = NULL;\n")
+#                s.write("        " + p.getTypeCpp() + " *buf = NULL;\n")
+#                s.write("        read_status = shm_reader_buffer_timedwait(re_" + p.alias + "_, &ts, &pbuf);\n")
+#                s.write("        ros::Time read_time = rtt_rosclock::host_now();\n")
+#                s.write("        double read_interval = (read_time - update_time).toSec();\n")
+#                s.write("        if (read_status == SHM_TIMEOUT) {\n")
+#                s.write("            diag_buf_valid_ = false;\n")
+#                s.write("            last_read_successful_ = false;\n")
+#                s.write("            // do not wait\n")
+#                s.write("        }\n")
+#                s.write("        else if (read_status == 0 && ((buf = reinterpret_cast<" + p.getTypeCpp() + "*>( pbuf )) != buf_prev_" + p.alias + "_)) {\n")
+#                s.write("            diag_buf_valid_ = true;\n")
+#                s.write("            last_read_successful_ = true;\n")
+#                s.write("            // save the pointer of buffer\n")
+#                s.write("            buf_prev_" + p.alias + "_ = buf;\n")
+#                s.write("            port_" + p.alias + "_out_.write(*buf);\n")
+#                s.write("            if (read_interval < period_min_) {\n")
+#                s.write("                usleep_time = int((period_min_ - read_interval)*1000000.0);\n")
+#                s.write("            }\n")
+#                s.write("        }\n")
+#                s.write("        else if (read_status > 0) {\n")
+#                s.write("            diag_buf_valid_ = false;\n")
+#                s.write("            last_read_successful_ = false;\n")
+#                s.write("            if (read_interval < period_avg_) {\n")
+#                s.write("                usleep_time = int((period_avg_ - read_interval)*1000000.0);\n")
+#                s.write("            }\n")
+#                s.write("        }\n")
+#                s.write("        else {\n")
+#                s.write("            diag_buf_valid_ = false;\n")
+#                s.write("            Logger::log() << Logger::Error << getName() << \" shm_reader_buffer_timedwait(" + p.alias + ") status: \" << read_status << Logger::endl;\n")
+#                s.write("            error();\n")
+#                s.write("            return;\n")
+#                s.write("        }\n")
+#                s.write("      }\n")
 
-    for p in sd.ports_in:
-        if not sd.trigger.buffer_aliases or (not p.alias in sd.trigger.buffer_aliases):
-            s.write("      {\n")
-            s.write("        void *pbuf = NULL;\n")
-            s.write("        read_status = shm_reader_buffer_get(re_" + p.alias + "_, &pbuf);\n")
-            s.write("        " + p.getTypeCpp() + " *buf = NULL;\n")
-            s.write("        if (read_status == 0 && ((buf = reinterpret_cast<" + p.getTypeCpp() + "*>( pbuf )) != buf_prev_" + p.alias + "_)) {\n")
-#            s.write("            diag_buf_valid_ = true;\n")
-            s.write("            // save the pointer of buffer\n")
-            s.write("            buf_prev_" + p.alias + "_ = buf;\n")
-            s.write("            port_" + p.alias + "_out_.write(*buf);\n")
-            s.write("        }\n")
-            s.write("        else if (read_status > 0) {\n")
-#            s.write("            diag_buf_valid_ = false;\n")
-            s.write("        }\n")
-            s.write("        else {\n")
-            #s.write("            diag_buf_valid_ = false;\n")
-            s.write("            Logger::log() << Logger::Error << getName() << \" shm_reader_buffer_get(" + p.alias + ") status: \" << read_status << Logger::endl;\n")
-            s.write("            error();\n")
-            s.write("            return;\n")
-            s.write("        }\n")
-            s.write("      }\n")
+#    for p in sd.ports_in:
+#        if not sd.trigger.buffer_aliases or (not p.alias in sd.trigger.buffer_aliases):
+#            s.write("      {\n")
+#            s.write("        void *pbuf = NULL;\n")
+#            s.write("        read_status = shm_reader_buffer_get(re_" + p.alias + "_, &pbuf);\n")
+#            s.write("        " + p.getTypeCpp() + " *buf = NULL;\n")
+#            s.write("        if (read_status == 0 && ((buf = reinterpret_cast<" + p.getTypeCpp() + "*>( pbuf )) != buf_prev_" + p.alias + "_)) {\n")
+#            s.write("            // save the pointer of buffer\n")
+#            s.write("            buf_prev_" + p.alias + "_ = buf;\n")
+#            s.write("            port_" + p.alias + "_out_.write(*buf);\n")
+#            s.write("        }\n")
+#            s.write("        else if (read_status > 0) {\n")
+#            s.write("        }\n")
+#            s.write("        else {\n")
+#            s.write("            Logger::log() << Logger::Error << getName() << \" shm_reader_buffer_get(" + p.alias + ") status: \" << read_status << Logger::endl;\n")
+#            s.write("            error();\n")
+#            s.write("            return;\n")
+#            s.write("        }\n")
+#            s.write("      }\n")
 
-    s.write("        trigger_out_.write(true);\n")
+#    s.write("        trigger_out_.write(true);\n")
 
-    if sd.trigger.buffer_aliases:
-        s.write("        if (usleep_time > 0) {\n")
-        s.write("            usleep(usleep_time);\n")
-        s.write("        }\n")
-    else:
-        s.write("        usleep(" + str(int(sd.trigger.period*1000000.0)) + ");\n")
+#    if sd.trigger.buffer_aliases:
+#        s.write("        if (usleep_time > 0) {\n")
+#        s.write("            usleep(usleep_time);\n")
+#        s.write("        }\n")
+#    else:
+#        s.write("        usleep(" + str(int(sd.trigger.period*1000000.0)) + ");\n")
 
-#    s.write("        else {  // if (event_)
-#    s.write("            double timeout_s = 1.0;
-
-#    s.write("            int timeout_sec = (int)timeout_s;
-#    s.write("            int timeout_nsec = (int)((timeout_s - (double)timeout_sec) * 1000000000.0);
-
-#    s.write("            ts.tv_sec += timeout_sec;
-#    s.write("            ts.tv_nsec += timeout_nsec;
-#    s.write("            if (ts.tv_nsec >= 1000000000) {
-#    s.write("                ts.tv_nsec -= 1000000000;
-#    s.write("                ++ts.tv_sec;
-#    s.write("            }
-
-#    s.write("            int read_status = shm_reader_buffer_timedwait(re_, &ts, &pbuf);
-
-#    s.write("            if (read_status == SHM_TIMEOUT) {
-#    s.write("                diag_buf_valid_ = false;
-#    s.write("            }
-#    s.write("            else if (read_status == 0 && ((buf = reinterpret_cast<" + p.getTypeCpp() + "*>( pbuf )) != buf_prev_)) {
-#    s.write("                diag_buf_valid_ = true;
-#    s.write("                // save the pointer of buffer
-#    s.write("                buf_prev_ = buf;
-#    s.write("                port_msg_out_.write(*buf);
-#    s.write("            }
-#    s.write("            else if (read_status > 0) {
-#    s.write("                diag_buf_valid_ = false;
-#    s.write("            }
-#    s.write("            else {
-#    s.write("                diag_buf_valid_ = false;
-#    s.write("                Logger::log() << Logger::Error << getName() << " shm_reader_buffer_timedwait status: " << read_status << Logger::endl;
-#    s.write("                error();
-#    s.write("                return;
-#    s.write("            }
-#    s.write("        }
-
-    s.write("        trigger();\n")
+#    s.write("        trigger();\n")
     s.write("    }\n\n")
 
     s.write("private:\n")
@@ -374,11 +336,11 @@ def generate_boost_serialization(package, port_def, output_cpp):
     for p in sd.ports_in:
         s.write("    std::string param_channel_name_" + p.alias + "_;\n")
 
-    if sd.trigger.buffer_aliases:
-        s.write("    double period_min_;\n")
-        s.write("    double period_avg_;\n")
-        s.write("    double period_max_;\n")
-        s.write("    double period_sim_max_;\n")
+#    if sd.trigger.buffer_aliases:
+#        s.write("    double period_min_;\n")
+#        s.write("    double period_avg_;\n")
+#        s.write("    double period_max_;\n")
+#        s.write("    double period_sim_max_;\n")
 
     for p in sd.ports_in:
         s.write("    std::string shm_name_" + p.alias + "_;\n")
