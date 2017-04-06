@@ -24,7 +24,7 @@ class InputPort:
         self.side = str_to_side(xml.getAttribute("side"))
         self.ipc = str_to_bool(xml.getAttribute("ipc"))
 
-        trigger = xml.getElementsByTagName('trigger')
+        trigger = xml.getElementsByTagName('tgr')
         if len(trigger) == 1:
             self.event = True
             self.period_min = float(trigger[0].getAttribute("min"))
@@ -110,10 +110,43 @@ class SubsystemBehavior:
         if xml:
             self.parse(xml)
 
+class Trigger:
+    def parse(self, xml):
+        buf = xml.getElementsByTagName('buffer')
+        period = xml.getElementsByTagName('period')
+
+        if len(buf) == 1:
+            self.period_min = float(buf[0].getAttribute("min"))
+            self.period_avg = float(buf[0].getAttribute("avg"))
+            self.period_max = float(buf[0].getAttribute("max"))
+            self.period_sim_max = float(buf[0].getAttribute("sim_max"))
+            on_buf = buf[0].getElementsByTagName('on_buffer')
+            if len(on_buf) == 0:
+                raise Exception('on_buffer', 'wrong number of <on_buffer> tags, should be at least 1')
+            self.buffer_aliases = []
+            for b in on_buf:
+                self.buffer_aliases.append(b.getAttribute("name"))
+        elif len(period) == 1:
+            self.period = float(period[0].getAttribute("p"))
+        else:
+            raise Exception('trigger', 'wrong number of <buffer> and <period> tags, should be exactly one of them')
+
+    def __init__(self, xml=None):
+        self.buffer_aliases = None
+        self.period_min = None
+        self.period_avg = None
+        self.period_max = None
+        self.period_sim_max = None
+
+        self.period = None
+        if xml:
+            self.parse(xml)
+
 class SubsystemDefinition:
     def __init__(self):
         self.ports_in = []
         self.ports_out = []
+        self.trigger = None
         self.errors = []
         self.predicates = []
 #        self.states = []
@@ -138,7 +171,7 @@ class SubsystemDefinition:
                 return b.name
         raise Exception('behavior.is_initial', 'there is no initial behavior')
 
-    def parsePorts(self, xml):
+    def parseBuffers(self, xml):
         # <in>
         for p_in in xml.getElementsByTagName('in'):
             p = InputPort(p_in)
@@ -172,13 +205,21 @@ class SubsystemDefinition:
             behavior = SubsystemBehavior(b)
             self.behaviors.append( behavior )
 
-    def parse(self, xml):
-        # <ports>
-        ports = xml.getElementsByTagName("ports")
-        if len(ports) != 1:
-            raise Exception('ports', 'wrong number of <ports> tags, should be 1')
+    def parseTrigger(self, xml):
+        self.trigger = Trigger(xml)
 
-        self.parsePorts(ports[0])
+    def parse(self, xml):
+        # <buffers>
+        buffers = xml.getElementsByTagName("buffers")
+        if len(buffers) != 1:
+            raise Exception('buffers', 'wrong number of <buffers> tags, should be 1')
+        self.parseBuffers(buffers[0])
+
+        # <trigger>
+        trigger = xml.getElementsByTagName("trigger")
+        if len(trigger) != 1:
+            raise Exception('trigger', 'wrong number of <trigger> tags, should be 1')
+        self.parseTrigger(trigger[0])
             
         # <errors>
         errors = xml.getElementsByTagName("errors")
@@ -214,6 +255,7 @@ class SubsystemDefinition:
         #
         # <activity>
         #
+# TODO:
         activity = xml.getElementsByTagName("activity")
         if len(activity) == 1:
             period = activity[0].getAttribute("period")

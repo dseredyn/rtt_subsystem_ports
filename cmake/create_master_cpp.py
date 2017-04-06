@@ -220,17 +220,19 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("    explicit " + package + "_Master(RTT::TaskContext* owner)\n")
     s.write("        : common_behavior::MasterService(owner)\n")
     s.write("        , owner_(owner)\n")
-    s.write("        , port_no_data_trigger_in__(\"no_data_trigger_INPORT_\")\n")
+    s.write("        , port_trigger_in__(\"no_data_trigger_INPORT_\")\n")
     s.write("    {\n")
 
     for p_in in sd.ports_in:
+# TODO: verify this
         if p_in.event:
             s.write("        owner_->addEventPort(\"" + p_in.alias + "_INPORT\", port_" + p_in.alias + "_in_);\n")
         else:
             s.write("        owner_->addPort(\"" + p_in.alias + "_INPORT\", port_" + p_in.alias + "_in_);\n")
+#        s.write("        owner_->addPort(\"" + p_in.alias + "_INPORT\", port_" + p_in.alias + "_in_);\n")
         s.write("        owner_->addPort(\"" + p_in.alias + "_OUTPORT\", port_" + p_in.alias + "_out_);\n\n")
 
-    s.write("\n        owner_->addEventPort(port_no_data_trigger_in__);\n")
+    s.write("\n        owner_->addEventPort(port_trigger_in__);\n")
 
     s.write("        bool use_sim_time = false;\n")
     s.write("        ros::param::get(\"/use_sim_time\", use_sim_time);\n")
@@ -347,20 +349,24 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("        info = std::vector<common_behavior::InputBufferInfo >();\n")
     for p in sd.ports_in:
         if p.side == 'bottom':
+# TODO: verify this
             if p.event:
                 s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.getTypeStr() + "\", \"" + p.alias + "\", true, " + str(p.period_min) + ", " + str(p.period_avg) + ", " + str(p.period_max) + ", " + str(p.period_sim_max) + "));\n")
             else:
                 s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
+#            s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
     s.write("    }\n\n")
 
     s.write("    virtual void getUpperInputBuffers(std::vector<common_behavior::InputBufferInfo >& info) const {\n")
     s.write("        info = std::vector<common_behavior::InputBufferInfo >();\n")
     for p in sd.ports_in:
         if p.side == 'top':
+# TODO: verify this
             if p.event:
                 s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.getTypeStr() + "\", \"" + p.alias + "\", true, " + str(p.period_min) + ", " + str(p.period_avg) + ", " + str(p.period_max) + ", " + str(p.period_sim_max) + "));\n")
             else:
                 s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
+#            s.write("        info.push_back(common_behavior::InputBufferInfo(" + str(p.ipc).lower() + ", \"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
     s.write("    }\n\n")
 
     s.write("    virtual void getLowerOutputBuffers(std::vector<common_behavior::OutputBufferInfo >& info) const {\n")
@@ -449,7 +455,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
         s.write("    RTT::InputPort<" + p.getTypeCpp() + " > port_" + p.alias + "_in_;\n")
         s.write("    RTT::OutputPort<" + p.getTypeCpp() + " > port_" + p.alias + "_out_;\n")
 
-    s.write("\n    RTT::InputPort<bool > port_no_data_trigger_in__;\n")
+    s.write("\n    RTT::InputPort<bool > port_trigger_in__;\n")
 
     s.write("\n    RTT::TaskContext* owner_;\n")
     if sd.trigger_gazebo:

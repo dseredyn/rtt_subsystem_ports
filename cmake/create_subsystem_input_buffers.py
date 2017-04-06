@@ -37,20 +37,21 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("#include \"common_behavior/abstract_behavior.h\"\n")
     s.write("#include \"common_behavior/abstract_predicate_list.h\"\n\n")
 
-
     for p_in in sd.ports_in:
         s.write("#include \"" + p_in.type_pkg + "/" + p_in.type_name + ".h\"\n")
-
-    s.write("\nnamespace " + package + "_types {\n\n")
 
     s.write("#include <shm_comm/shm_channel.h>\n")
     s.write("#include <vector>\n")
     s.write("#include <string>\n")
     s.write("#include <rtt/RTT.hpp>\n")
     s.write("#include <rtt/Logger.hpp>\n")
+    s.write("#include <rtt/Component.hpp>\n")
     s.write("#include <rtt_rosclock/rtt_rosclock.h>\n\n")
 
     s.write("using namespace RTT;\n\n")
+
+    s.write("\nnamespace " + package + "_types {\n\n")
+
 
     s.write("class InputBuffers: public RTT::TaskContext {\n")
     s.write("public:\n")
@@ -60,12 +61,14 @@ def generate_boost_serialization(package, port_def, output_cpp):
 #        s.write("        , shm_name_" + p.alias + "_()\n")
         s.write("        , buf_prev_" + p.alias + "_(NULL)\n")
         s.write("        , port_" + p.alias + "_out_(\"" + p.alias + "_OUTPORT\", false)\n")
-    s.write("        , trigger_out_(\"trigger_OUTPORT\")
+    s.write("        , trigger_out_(\"trigger_OUTPORT\")\n")
 #    s.write("        , event_(false)
 #TODO:
-    s.write("        , period_min_(0.0)\n")
-    s.write("        , period_avg_(0.0)\n")
-    s.write("        , period_max_(0.0)\n")
+    if sd.trigger.buffer_aliases:
+        s.write("        , period_min_(" + str(sd.trigger.period_min) + ")\n")
+        s.write("        , period_avg_(" + str(sd.trigger.period_avg) + ")\n")
+        s.write("        , period_max_(" + str(sd.trigger.period_max) + ")\n")
+        s.write("        , period_sim_max_(" + str(sd.trigger.period_sim_max) + ")\n")
     s.write("    {\n")
     for p in sd.ports_in:
         s.write("        this->ports()->addPort(port_" + p.alias + "_out_);\n")
@@ -80,7 +83,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
 #        addProperty("period_max", period_max_);
 
     for p in sd.ports_in:
-        s.write("        addProperty(\"channel_name" + p.alias + "\", param_channel_name_" + p.alias + "_);\n")
+        s.write("        addProperty(\"channel_name_" + p.alias + "\", param_channel_name_" + p.alias + "_);\n")
     s.write("    }\n\n")
 
     s.write("    // this method in not RT-safe\n")
@@ -103,10 +106,12 @@ def generate_boost_serialization(package, port_def, output_cpp):
 
     s.write("    bool configureHook() {\n")
     s.write("        Logger::In in(\"" + package + "::InputBuffers::configureHook\");\n")
-    s.write("        if (param_channel_name_.empty()) {\n")
-    s.write("            Logger::log() << Logger::Error << "parameter \'channel_name\' is empty" << Logger::endl;\n")
-    s.write("            return false;\n")
-    s.write("        }\n")
+    for p in sd.ports_in:
+        s.write("        if (param_channel_name_" + p.alias + "_.empty()) {\n")
+        s.write("            Logger::log() << Logger::Error << \"parameter \\\'channel_name_" + p.alias + "\\\' is empty\" << Logger::endl;\n")
+        s.write("            return false;\n")
+        s.write("        }\n")
+        s.write("        Logger::log() << Logger::Info << \"parameter channel_name is set to: \\\'\" << param_channel_name_" + p.alias + "_ << \"\\\'\" << Logger::endl;\n")
 
 #TODO:
 #        if (event_) {
@@ -133,241 +138,267 @@ def generate_boost_serialization(package, port_def, output_cpp):
 #            }
 #        }
 
-    s.write("        Logger::log() << Logger::Info << \"parameter channel_name is set to: \\\'\" << param_channel_name_ << \"\\\'\" << Logger::endl;\n")
 #TODO:
 #        Logger::log() << Logger::Info << "parameter event is set to: \'" << (event_?"true":"false") << Logger::endl;
 #        Logger::log() << Logger::Info << "parameter \'period_min\' is set to: " << period_min_ << Logger::endl;
 #        Logger::log() << Logger::Info << "parameter \'period_avg\' is set to: " << period_avg_ << Logger::endl;
 #        Logger::log() << Logger::Info << "parameter \'period_max\' is set to: " << period_max_ << Logger::endl;
 
-    s.write("        shm_name_ = param_channel_name_;\n")
+    s.write("        bool create_channel;\n")
+    s.write("        int result;\n")
 
-    s.write("        bool create_channel = false;\n")
+    for p in sd.ports_in:
+        s.write("        shm_name_" + p.alias + "_ = param_channel_name_" + p.alias + "_;\n")
+        s.write("        create_channel = false;\n")
 
-        int result = shm_connect_reader(shm_name_.c_str(), &re_);
-        if (result == SHM_INVAL) {
-            Logger::log() << Logger::Error << "shm_connect_reader: invalid parameters" << Logger::endl;
-            return false;
-        }
-        else if (result == SHM_FATAL) {
-            Logger::log() << Logger::Error << "shm_connect_reader: memory error" << Logger::endl;
-            return false;
-        }
-        else if (result == SHM_NO_CHANNEL) {
-            Logger::log() << Logger::Warning << "shm_connect_reader: could not open shm object, trying to initialize the channel..." << Logger::endl;
-            create_channel = true;
-        }
-        else if (result == SHM_CHANNEL_INCONSISTENT) {
-            Logger::log() << Logger::Warning << "shm_connect_reader: shm channel is inconsistent, trying to initialize the channel..." << Logger::endl;
-            create_channel = true;
-        }
-        else if (result == SHM_ERR_INIT) {
-            Logger::log() << Logger::Error << "shm_connect_reader: could not initialize channel" << Logger::endl;
-            return false;
-        }
-        else if (result == SHM_ERR_CREATE) {
-            Logger::log() << Logger::Warning << "shm_connect_reader: could not create reader" << Logger::endl;
-            create_channel = true;
-        }
+        s.write("        result = shm_connect_reader(shm_name_" + p.alias + "_.c_str(), &re_" + p.alias + "_);\n")
+        s.write("        if (result == SHM_INVAL) {\n")
+        s.write("            Logger::log() << Logger::Error << \"shm_connect_reader: invalid parameters\" << Logger::endl;\n")
+        s.write("            return false;\n")
+        s.write("        }\n")
+        s.write("        else if (result == SHM_FATAL) {\n")
+        s.write("            Logger::log() << Logger::Error << \"shm_connect_reader: memory error\" << Logger::endl;\n")
+        s.write("            return false;\n")
+        s.write("        }\n")
+        s.write("        else if (result == SHM_NO_CHANNEL) {\n")
+        s.write("            Logger::log() << Logger::Warning << \"shm_connect_reader: could not open shm object, trying to initialize the channel...\" << Logger::endl;\n")
+        s.write("            create_channel = true;\n")
+        s.write("        }\n")
+        s.write("        else if (result == SHM_CHANNEL_INCONSISTENT) {\n")
+        s.write("            Logger::log() << Logger::Warning << \"shm_connect_reader: shm channel is inconsistent, trying to initialize the channel...\" << Logger::endl;\n")
+        s.write("            create_channel = true;\n")
+        s.write("        }\n")
+        s.write("        else if (result == SHM_ERR_INIT) {\n")
+        s.write("            Logger::log() << Logger::Error << \"shm_connect_reader: could not initialize channel\" << Logger::endl;\n")
+        s.write("            return false;\n")
+        s.write("        }\n")
+        s.write("        else if (result == SHM_ERR_CREATE) {\n")
+        s.write("            Logger::log() << Logger::Warning << \"shm_connect_reader: could not create reader\" << Logger::endl;\n")
+        s.write("            create_channel = true;\n")
+        s.write("        }\n")
 
-        if (!create_channel) {
-            void *pbuf = NULL;
-            result = shm_reader_buffer_get(re_, &pbuf);
-            if (result < 0) {
-                Logger::log() << Logger::Warning << "shm_reader_buffer_get: error: " << result << Logger::endl;
-                create_channel = true;
-            }
-        }
+        s.write("        if (!create_channel) {\n")
+        s.write("            void *pbuf = NULL;\n")
+        s.write("            result = shm_reader_buffer_get(re_" + p.alias + "_, &pbuf);\n")
+        s.write("            if (result < 0) {\n")
+        s.write("                Logger::log() << Logger::Warning << \"shm_reader_buffer_get: error: \" << result << Logger::endl;\n")
+        s.write("                create_channel = true;\n")
+        s.write("            }\n")
+        s.write("        }\n")
 
-        if (create_channel) {
-            result = shm_create_channel(shm_name_.c_str(), sizeof(Container), 1, true);
-            if (result != 0) {
-                Logger::log() << Logger::Error << "create_shm_object: error: " << result << "   errno: " << errno << Logger::endl;
-                return false;
-            }
+        s.write("        if (create_channel) {\n")
+        s.write("            result = shm_create_channel(shm_name_" + p.alias + "_.c_str(), sizeof(" + p.getTypeCpp() + "), 1, true);\n")
+        s.write("            if (result != 0) {\n")
+        s.write("                Logger::log() << Logger::Error << \"create_shm_object: error: \" << result << \"   errno: \" << errno << Logger::endl;\n")
+        s.write("                return false;\n")
+        s.write("            }\n")
 
-            result = shm_connect_reader(shm_name_.c_str(), &re_);
-            if (result != 0) {
-                Logger::log() << Logger::Error << "shm_connect_reader: error: " << result << Logger::endl;
-                return false;
-            }
-        }
+        s.write("            result = shm_connect_reader(shm_name_" + p.alias + "_.c_str(), &re_" + p.alias + "_);\n")
+        s.write("            if (result != 0) {\n")
+        s.write("                Logger::log() << Logger::Error << \"shm_connect_reader: error: \" << result << Logger::endl;\n")
+        s.write("                return false;\n")
+        s.write("            }\n")
+        s.write("        }\n")
 
-        mTriggerOnStart = false;
+    s.write("        mTriggerOnStart = false;\n")
+    s.write("        return true;\n")
+    s.write("    }\n\n")
 
-        return true;
-    }
+    s.write("    void cleanupHook() {\n")
+    for p in sd.ports_in:
+        s.write("        shm_release_reader(re_" + p.alias + "_);\n")
+    s.write("    }\n\n")
 
-    void cleanupHook() {
-        shm_release_reader(re_);
-    }
+    s.write("    void stopHook() {\n")
+    s.write("        if (getTaskState() == TaskContext::Exception || getTaskState() == TaskContext::RunTimeError) {\n")
+    s.write("            recover();\n")
+    s.write("        }\n")
+    s.write("    }\n\n")
 
-    void stopHook() {
-        if (getTaskState() == TaskContext::Exception || getTaskState() == TaskContext::RunTimeError) {
-            recover();
-        }
-    }
+    s.write("    bool startHook() {\n")
+    s.write("        void *pbuf = NULL;\n")
+    s.write("        int result;\n")
+    for p in sd.ports_in:
+        s.write("        result = shm_reader_buffer_get(re_" + p.alias + "_, &pbuf);\n")
+        s.write("        if (result < 0) {\n")
+        s.write("            Logger::log() << Logger::Error << \"shm_reader_buffer_get(" + p.alias + "): error: \" << result << Logger::endl;\n")
+        s.write("            return false;\n")
+        s.write("        }\n")
+        s.write("        buf_prev_" + p.alias + "_ = reinterpret_cast<" + p.getTypeCpp() + "*>( pbuf );\n")
 
-    bool startHook() {
-        void *pbuf = NULL;
+    s.write("        diag_buf_valid_ = false;\n")
+    s.write("        trigger();\n")
+    s.write("        last_read_successful_ = false;\n")
+    s.write("        return true;\n")
+    s.write("    }\n\n")
 
-        int result = 0;
-        result = shm_reader_buffer_get(re_, &pbuf);
+    s.write("    void exceptionHook() {\n")
+    s.write("        recover();\n")
+    s.write("    }\n\n")
 
-        if (result < 0) {
-            Logger::log() << Logger::Error << "shm_reader_buffer_get: error: " << result << Logger::endl;
-            return false;
-        }
+    s.write("    void updateHook() {\n")
+    s.write("        // get update time\n")
+    s.write("        ros::Time update_time = rtt_rosclock::host_now();\n")
+    s.write("        timespec ts;\n")
+    s.write("        clock_gettime(CLOCK_REALTIME, &ts);\n")
+    s.write("        int read_status;\n")
 
-        buf_prev_ = reinterpret_cast<Container*>( pbuf );
+    if sd.trigger.buffer_aliases:
+        s.write("        double timeout_s;\n")
+        s.write("        if (last_read_successful_) {\n")
+        s.write("            timeout_s = period_max_;\n")
+        s.write("        }\n")
+        s.write("        else {\n")
+        s.write("            timeout_s = period_avg_;\n")
+        s.write("        }\n")
+        s.write("        int timeout_sec = (int)timeout_s;\n")
+        s.write("        int timeout_nsec = (int)((timeout_s - (double)timeout_sec) * 1000000000.0);\n")
+        s.write("        ts.tv_sec += timeout_sec;\n")
+        s.write("        ts.tv_nsec += timeout_nsec;\n")
+        s.write("        if (ts.tv_nsec >= 1000000000) {\n")
+        s.write("            ts.tv_nsec -= 1000000000;\n")
+        s.write("            ++ts.tv_sec;\n")
+        s.write("        }\n")
+        s.write("        int usleep_time = 0;\n")
+        for p in sd.ports_in:
+            if p.alias in sd.trigger.buffer_aliases:
+                s.write("      {\n")
+                s.write("        void *pbuf = NULL;\n")
+                s.write("        " + p.getTypeCpp() + " *buf = NULL;\n")
+                s.write("        read_status = shm_reader_buffer_timedwait(re_" + p.alias + "_, &ts, &pbuf);\n")
+                s.write("        ros::Time read_time = rtt_rosclock::host_now();\n")
+                s.write("        double read_interval = (read_time - update_time).toSec();\n")
+                s.write("        if (read_status == SHM_TIMEOUT) {\n")
+                s.write("            diag_buf_valid_ = false;\n")
+                s.write("            last_read_successful_ = false;\n")
+                s.write("            // do not wait\n")
+                s.write("        }\n")
+                s.write("        else if (read_status == 0 && ((buf = reinterpret_cast<" + p.getTypeCpp() + "*>( pbuf )) != buf_prev_" + p.alias + "_)) {\n")
+                s.write("            diag_buf_valid_ = true;\n")
+                s.write("            last_read_successful_ = true;\n")
+                s.write("            // save the pointer of buffer\n")
+                s.write("            buf_prev_" + p.alias + "_ = buf;\n")
+                s.write("            port_" + p.alias + "_out_.write(*buf);\n")
+                s.write("            if (read_interval < period_min_) {\n")
+                s.write("                usleep_time = int((period_min_ - read_interval)*1000000.0);\n")
+                s.write("            }\n")
+                s.write("        }\n")
+                s.write("        else if (read_status > 0) {\n")
+                s.write("            diag_buf_valid_ = false;\n")
+                s.write("            last_read_successful_ = false;\n")
+                s.write("            if (read_interval < period_avg_) {\n")
+                s.write("                usleep_time = int((period_avg_ - read_interval)*1000000.0);\n")
+                s.write("            }\n")
+                s.write("        }\n")
+                s.write("        else {\n")
+                s.write("            diag_buf_valid_ = false;\n")
+                s.write("            Logger::log() << Logger::Error << getName() << \" shm_reader_buffer_timedwait(" + p.alias + ") status: \" << read_status << Logger::endl;\n")
+                s.write("            error();\n")
+                s.write("            return;\n")
+                s.write("        }\n")
+                s.write("      }\n")
 
-        diag_buf_valid_ = false;
-        trigger();
+    for p in sd.ports_in:
+        if not sd.trigger.buffer_aliases or (not p.alias in sd.trigger.buffer_aliases):
+            s.write("      {\n")
+            s.write("        void *pbuf = NULL;\n")
+            s.write("        read_status = shm_reader_buffer_get(re_" + p.alias + "_, &pbuf);\n")
+            s.write("        " + p.getTypeCpp() + " *buf = NULL;\n")
+            s.write("        if (read_status == 0 && ((buf = reinterpret_cast<" + p.getTypeCpp() + "*>( pbuf )) != buf_prev_" + p.alias + "_)) {\n")
+#            s.write("            diag_buf_valid_ = true;\n")
+            s.write("            // save the pointer of buffer\n")
+            s.write("            buf_prev_" + p.alias + "_ = buf;\n")
+            s.write("            port_" + p.alias + "_out_.write(*buf);\n")
+            s.write("        }\n")
+            s.write("        else if (read_status > 0) {\n")
+#            s.write("            diag_buf_valid_ = false;\n")
+            s.write("        }\n")
+            s.write("        else {\n")
+            #s.write("            diag_buf_valid_ = false;\n")
+            s.write("            Logger::log() << Logger::Error << getName() << \" shm_reader_buffer_get(" + p.alias + ") status: \" << read_status << Logger::endl;\n")
+            s.write("            error();\n")
+            s.write("            return;\n")
+            s.write("        }\n")
+            s.write("      }\n")
 
-        last_read_successful_ = false;
+    s.write("        trigger_out_.write(true);\n")
 
-        return true;
-    }
+    if sd.trigger.buffer_aliases:
+        s.write("        if (usleep_time > 0) {\n")
+        s.write("            usleep(usleep_time);\n")
+        s.write("        }\n")
+    else:
+        s.write("        usleep(" + str(int(sd.trigger.period*1000000.0)) + ");\n")
 
-    void exceptionHook() {
-        recover();
-    }
+#    s.write("        else {  // if (event_)
+#    s.write("            double timeout_s = 1.0;
 
-    void updateHook() {
+#    s.write("            int timeout_sec = (int)timeout_s;
+#    s.write("            int timeout_nsec = (int)((timeout_s - (double)timeout_sec) * 1000000000.0);
 
-        // get update time
-        ros::Time update_time = rtt_rosclock::host_now();
-        timespec ts;
-        clock_gettime(CLOCK_REALTIME, &ts);
+#    s.write("            ts.tv_sec += timeout_sec;
+#    s.write("            ts.tv_nsec += timeout_nsec;
+#    s.write("            if (ts.tv_nsec >= 1000000000) {
+#    s.write("                ts.tv_nsec -= 1000000000;
+#    s.write("                ++ts.tv_sec;
+#    s.write("            }
 
-        void *pbuf = NULL;
-        Container *buf = NULL;
+#    s.write("            int read_status = shm_reader_buffer_timedwait(re_, &ts, &pbuf);
 
-        if (event_) {
-            double timeout_s;
-            if (last_read_successful_) {
-                timeout_s = period_max_;
-            }
-            else {
-                timeout_s = period_avg_;
-            }
+#    s.write("            if (read_status == SHM_TIMEOUT) {
+#    s.write("                diag_buf_valid_ = false;
+#    s.write("            }
+#    s.write("            else if (read_status == 0 && ((buf = reinterpret_cast<" + p.getTypeCpp() + "*>( pbuf )) != buf_prev_)) {
+#    s.write("                diag_buf_valid_ = true;
+#    s.write("                // save the pointer of buffer
+#    s.write("                buf_prev_ = buf;
+#    s.write("                port_msg_out_.write(*buf);
+#    s.write("            }
+#    s.write("            else if (read_status > 0) {
+#    s.write("                diag_buf_valid_ = false;
+#    s.write("            }
+#    s.write("            else {
+#    s.write("                diag_buf_valid_ = false;
+#    s.write("                Logger::log() << Logger::Error << getName() << " shm_reader_buffer_timedwait status: " << read_status << Logger::endl;
+#    s.write("                error();
+#    s.write("                return;
+#    s.write("            }
+#    s.write("        }
 
-            int timeout_sec = (int)timeout_s;
-            int timeout_nsec = (int)((timeout_s - (double)timeout_sec) * 1000000000.0);
+    s.write("        trigger();\n")
+    s.write("    }\n\n")
 
-            ts.tv_sec += timeout_sec;
-            ts.tv_nsec += timeout_nsec;
-            if (ts.tv_nsec >= 1000000000) {
-                ts.tv_nsec -= 1000000000;
-                ++ts.tv_sec;
-            }
+    s.write("private:\n")
 
-            int read_status = shm_reader_buffer_timedwait(re_, &ts, &pbuf);
+    s.write("    // properties\n")
+    for p in sd.ports_in:
+        s.write("    std::string param_channel_name_" + p.alias + "_;\n")
 
-            ros::Time read_time = rtt_rosclock::host_now();
-            double read_interval = (read_time - update_time).toSec();
+    if sd.trigger.buffer_aliases:
+        s.write("    double period_min_;\n")
+        s.write("    double period_avg_;\n")
+        s.write("    double period_max_;\n")
+        s.write("    double period_sim_max_;\n")
 
-            if (read_status == SHM_TIMEOUT) {
-                diag_buf_valid_ = false;
-                last_read_successful_ = false;
-                no_data_out_.write(true);
-                // do not wait
-            }
-            else if (read_status == 0 && ((buf = reinterpret_cast<Container*>( pbuf )) != buf_prev_)) {
-                diag_buf_valid_ = true;
-                last_read_successful_ = true;
-                // save the pointer of buffer
-                buf_prev_ = buf;
-                port_msg_out_.write(*buf);
-                if (read_interval < period_min_) {
-                    usleep( int((period_min_ - read_interval)*1000000.0) );
-                }
-            }
-            else if (read_status > 0) {
-                diag_buf_valid_ = false;
-                last_read_successful_ = false;
-                no_data_out_.write(true);
-                if (read_interval < period_avg_) {
-                    usleep( int((period_avg_ - read_interval)*1000000.0) );
-                }
-            }
-            else {
-                diag_buf_valid_ = false;
-                Logger::log() << Logger::Error << getName() << " shm_reader_buffer_timedwait status: " << read_status << Logger::endl;
-                error();
-                return;
-            }
-        }
-        else {
-            double timeout_s = 1.0;
+    for p in sd.ports_in:
+        s.write("    std::string shm_name_" + p.alias + "_;\n")
+        s.write("    shm_reader_t* re_" + p.alias + "_;\n")
+        s.write("    " + p.getTypeCpp() + " *buf_prev_" + p.alias + "_;\n")
+        s.write("    RTT::OutputPort<" + p.getTypeCpp() + " > port_" + p.alias + "_out_;\n")
 
-            int timeout_sec = (int)timeout_s;
-            int timeout_nsec = (int)((timeout_s - (double)timeout_sec) * 1000000000.0);
+    s.write("    bool last_read_successful_;\n")
+    s.write("    RTT::OutputPort<bool > trigger_out_;\n")
 
-            ts.tv_sec += timeout_sec;
-            ts.tv_nsec += timeout_nsec;
-            if (ts.tv_nsec >= 1000000000) {
-                ts.tv_nsec -= 1000000000;
-                ++ts.tv_sec;
-            }
+    s.write("    bool diag_buf_valid_;\n")
 
-            int read_status = shm_reader_buffer_timedwait(re_, &ts, &pbuf);
+    s.write("    RTT::os::TimeService::nsecs last_recv_time_;\n")
 
-            if (read_status == SHM_TIMEOUT) {
-                diag_buf_valid_ = false;
-            }
-            else if (read_status == 0 && ((buf = reinterpret_cast<Container*>( pbuf )) != buf_prev_)) {
-                diag_buf_valid_ = true;
-                // save the pointer of buffer
-                buf_prev_ = buf;
-                port_msg_out_.write(*buf);
-            }
-            else if (read_status > 0) {
-                diag_buf_valid_ = false;
-            }
-            else {
-                diag_buf_valid_ = false;
-                Logger::log() << Logger::Error << getName() << " shm_reader_buffer_timedwait status: " << read_status << Logger::endl;
-                error();
-                return;
-            }
-
-        }
-
-        trigger();
-    }
-
-private:
-
-    // properties
-    std::string param_channel_name_;
-
-    bool event_;
-    double period_min_;
-    double period_avg_;
-    double period_max_;
-
-    std::string shm_name_;
-
-    shm_reader_t* re_;
-    Container *buf_prev_;
-    bool last_read_successful_;
-
-    RTT::OutputPort<Container > port_msg_out_;
-
-    RTT::OutputPort<bool > no_data_out_;
-
-    bool diag_buf_valid_;
-
-    RTT::os::TimeService::nsecs last_recv_time_;
-
-    ros::Time last_update_time_;
-};
-
-
-
+    s.write("    ros::Time last_update_time_;\n")
+    s.write("};\n\n")
 
     s.write("};  // namespace " + package + "_types\n\n")
+
+    s.write("ORO_LIST_COMPONENT_TYPE(" + package + "_types::InputBuffers)\n")
 
     (output_dir,filename) = os.path.split(output_cpp)
     try:
