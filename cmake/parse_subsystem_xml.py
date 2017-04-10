@@ -18,7 +18,7 @@ class InputPort:
         self.alias = xml.getAttribute("alias")
         type_s = xml.getAttribute("type").split("::")
         if len(type_s) != 2:
-            raise Exception('in', 'wrong type attribute of <ports> <in> tag: ' + type + ', should be \'package::typename\"')
+            raise Exception('in', 'wrong type attribute of <buffers> <in> tag: ' + type + ', should be \'package::typename\"')
         self.type_pkg = type_s[0]
         self.type_name = type_s[1]
         self.side = str_to_side(xml.getAttribute("side"))
@@ -38,7 +38,7 @@ class OutputPort:
         self.alias = xml.getAttribute("alias")
         type_s = xml.getAttribute("type").split("::")
         if len(type_s) != 2:
-            raise Exception('in', 'wrong type attribute of <ports> <out> tag: ' + type + ', should be \'package::typename\"')
+            raise Exception('in', 'wrong type attribute of <buffers> <out> tag: ' + type + ', should be \'package::typename\"')
         self.type_pkg = type_s[0]
         self.type_name = type_s[1]
         self.side = str_to_side(xml.getAttribute("side"))
@@ -56,11 +56,6 @@ class OutputPort:
 class SubsystemState:
     def parse(self, xml):
         self.name = xml.getAttribute("name")
-        is_initial = xml.getAttribute("is_initial")
-        if is_initial:
-            self.is_initial = str_to_bool(is_initial)
-        else:
-            self.is_initial = False
 
         self.behaviors = []
         for b in xml.getElementsByTagName("behavior"):
@@ -168,11 +163,12 @@ class TriggerMethods:
 
 class SubsystemDefinition:
     def __init__(self):
-        self.ports_in = []
-        self.ports_out = []
+        self.buffers_in = []
+        self.buffers_out = []
         self.trigger_methods = None
         self.predicates = []
         self.states = []
+        self.initial_state_name = None
         self.behaviors = []
         self.period = None
         self.use_ros_sim_clock = False
@@ -180,34 +176,31 @@ class SubsystemDefinition:
         self.use_sim_clock = False
 
     def getInitialStateName(self):
-        for st in self.states:
-            if st.is_initial:
-                return st.name
-        return None
+        return self.initial_state_name
 
     def parseBuffers(self, xml):
         # <in>
         for p_in in xml.getElementsByTagName('in'):
             p = InputPort(p_in)
-            self.ports_in.append(p)
+            self.buffers_in.append(p)
 
         # <out>
         for p_out in xml.getElementsByTagName('out'):
             p = OutputPort(p_out)
-            self.ports_out.append(p)
+            self.buffers_out.append(p)
 
     def parsePredicates(self, xml):
         for p in xml.getElementsByTagName("predicate"):
             self.predicates.append( p.getAttribute("name") )
 
     def parseStates(self, xml):
-        initial_state = None
+
+        self.initial_state_name = xml.getAttribute("initial")
+        if not self.initial_state_name:
+            raise Exception('states initial', 'attribute \'initial\' in <states> node is not set')
+
         for s in xml.getElementsByTagName("state"):
             state = SubsystemState(s)
-            if state.is_initial and not initial_state:
-                initial_state = state.name
-            elif state.is_initial and initial_state:
-                raise Exception('state.is_initial', 'at least two states are marked as initial: ' + initial_state + ", " + state.name)
             self.states.append( state )
 
     def parseBehaviors(self, xml):

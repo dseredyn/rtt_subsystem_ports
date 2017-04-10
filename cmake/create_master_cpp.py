@@ -16,7 +16,7 @@ import argparse
 
 import parse_subsystem_xml
 
-def logicExprToCpp(expr, predicates):#, states):
+def logicExprToCpp(expr, predicates):
     cpp = expr
 
     predicates_copy = copy.copy(predicates)
@@ -154,7 +154,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
         s.write("        , port_no_data_trigger_in__(\"no_data_trigger_INPORT_\")\n")
     s.write("    {\n")
 
-    for p_in in sd.ports_in:
+    for p_in in sd.buffers_in:
 # TODO: verify this
         if sd.trigger_methods.onNewData(p_in.alias):
             s.write("        owner_->addEventPort(\"" + p_in.alias + "_INPORT\", port_" + p_in.alias + "_in_);\n")
@@ -226,13 +226,13 @@ def generate_boost_serialization(package, port_def, output_cpp):
 
     s.write("    virtual void initBuffersData(common_behavior::InputDataPtr& in_data) const {\n")
     s.write("        boost::shared_ptr<InputData > in = boost::static_pointer_cast<InputData >(in_data);\n")
-    for p_in in sd.ports_in:
+    for p_in in sd.buffers_in:
         s.write("        in->" + p_in.alias + " = " + p_in.getTypeCpp() + "();\n")
     s.write("    }\n\n")
 
     s.write("    virtual void readBuffers(common_behavior::InputDataPtr& in_data) {\n")
     s.write("        boost::shared_ptr<InputData > in = boost::static_pointer_cast<InputData >(in_data);\n")
-    for p_in in sd.ports_in:
+    for p_in in sd.buffers_in:
 #        no_data_max = 50
 #        if p_in.event:
         no_data_max = 0
@@ -253,20 +253,20 @@ def generate_boost_serialization(package, port_def, output_cpp):
 
     s.write("    virtual void writePorts(common_behavior::InputDataPtr& in_data) {\n")
     s.write("        boost::shared_ptr<InputData> in = boost::static_pointer_cast<InputData >(in_data);\n")
-    for p_in in sd.ports_in:
+    for p_in in sd.buffers_in:
         s.write("        port_" + p_in.alias + "_out_.write(in->" + p_in.alias + ");\n")
     s.write("    }\n\n")
 
     s.write("    virtual common_behavior::InputDataPtr getDataSample() const {\n")
     s.write("        boost::shared_ptr<InputData > ptr(new InputData());\n")
-    for p_in in sd.ports_in:
+    for p_in in sd.buffers_in:
         s.write("        ptr->" + p_in.alias + " = " + p_in.getTypeCpp() + "();\n")
     s.write("        return boost::static_pointer_cast<common_behavior::InputData >( ptr );\n")
     s.write("    }\n\n")
 
     s.write("    virtual void getLowerInputBuffers(std::vector<common_behavior::InputBufferInfo >& info) const {\n")
     s.write("        info = std::vector<common_behavior::InputBufferInfo >();\n")
-    for p in sd.ports_in:
+    for p in sd.buffers_in:
         if p.side == 'bottom':
 # TODO: verify this
             s.write("        info.push_back(common_behavior::InputBufferInfo(\"" + p.getTypeStr() + "\", \"" + p.alias + "\", ")
@@ -300,7 +300,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
         for tm in sd.trigger_methods.onNoData():
             s.write("// " + tm.name + ", " + str(tm.first_timeout) + ", " + str(tm.next_timeout) + ", " + str(tm.first_timeout_sim) + "\n")
 
-    for p in sd.ports_in:
+    for p in sd.buffers_in:
         if p.side == 'top':
 # TODO: verify this
             s.write("        info.push_back(common_behavior::InputBufferInfo(\"" + p.getTypeStr() + "\", \"" + p.alias + "\", ")
@@ -325,14 +325,14 @@ def generate_boost_serialization(package, port_def, output_cpp):
 
     s.write("    virtual void getLowerOutputBuffers(std::vector<common_behavior::OutputBufferInfo >& info) const {\n")
     s.write("        info = std::vector<common_behavior::OutputBufferInfo >();\n")
-    for p in sd.ports_out:
+    for p in sd.buffers_out:
         if p.side == 'bottom':
             s.write("        info.push_back(common_behavior::OutputBufferInfo(\"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
     s.write("    }\n\n")
 
     s.write("    virtual void getUpperOutputBuffers(std::vector<common_behavior::OutputBufferInfo >& info) const {\n")
     s.write("        info = std::vector<common_behavior::OutputBufferInfo >();\n")
-    for p in sd.ports_out:
+    for p in sd.buffers_out:
         if p.side == 'top':
             s.write("        info.push_back(common_behavior::OutputBufferInfo(\"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
     s.write("    }\n\n")
@@ -400,7 +400,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("    }\n\n")
 
     s.write("protected:\n")
-    for p in sd.ports_in:
+    for p in sd.buffers_in:
         s.write("    " + p.getTypeCpp() + " " + p.alias + "_prev_;\n")
         s.write("    int " + p.alias + "_no_data_counter_;\n")
         s.write("    RTT::InputPort<" + p.getTypeCpp() + " > port_" + p.alias + "_in_;\n")

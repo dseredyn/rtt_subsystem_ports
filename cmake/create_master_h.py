@@ -42,7 +42,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("#include \"common_behavior/abstract_predicate_list.h\"\n\n")
 
 
-    for p_in in sd.ports_in:
+    for p_in in sd.buffers_in:
         s.write("#include \"" + p_in.type_pkg + "/" + p_in.type_name + ".h\"\n")
 
     s.write("\nnamespace " + package + "_types {\n\n")
@@ -53,7 +53,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("class InputData : public common_behavior::InputData {\n")
     s.write("public:\n")
 
-    for p_in in sd.ports_in:
+    for p_in in sd.buffers_in:
         s.write("  " + p_in.type_pkg + "::" + p_in.type_name + " " + p_in.alias + ";\n")
 
     s.write("};\n\n")
