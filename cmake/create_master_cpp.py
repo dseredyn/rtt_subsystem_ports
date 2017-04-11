@@ -368,7 +368,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("        return boost::static_pointer_cast<common_behavior::PredicateList >( ptr );\n")
     s.write("    }\n\n")
 
-    s.write("    virtual void calculatePredicates(const common_behavior::InputDataConstPtr& in_data, const std::vector<RTT::TaskContext*>& components, common_behavior::PredicateListPtr& pred_list) const {\n")
+    s.write("    virtual void calculatePredicates(const common_behavior::InputDataConstPtr& in_data, const std::vector<const RTT::TaskContext*>& components, common_behavior::PredicateListPtr& pred_list) const {\n")
     s.write("        PredicateListPtr p = boost::static_pointer_cast<PredicateList >( pred_list );\n")
     s.write("        InputDataConstPtr d = boost::static_pointer_cast<const InputData >( in_data );\n")
     for pred in sd.predicates:

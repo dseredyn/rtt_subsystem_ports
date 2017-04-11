@@ -84,7 +84,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
 
     s.write("typedef bool (*predicateFunction)(\n")
     s.write("            const InputDataConstPtr&,\n")
-    s.write("            const std::vector<RTT::TaskContext*>&);\n\n")
+    s.write("            const std::vector<const RTT::TaskContext*>&);\n\n")
 
     s.write("class PredicateFactory\n")
     s.write("{\n")
