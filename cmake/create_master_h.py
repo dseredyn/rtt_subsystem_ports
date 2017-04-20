@@ -39,7 +39,6 @@ def generate_boost_serialization(package, port_def, output_cpp):
 
     s.write("#include \"common_behavior/input_data.h\"\n")
     s.write("#include \"common_behavior/abstract_behavior.h\"\n")
-    s.write("#include \"common_behavior/abstract_state.h\"\n\n")
     s.write("#include \"common_behavior/abstract_predicate_list.h\"\n\n")
 
 
@@ -70,8 +69,8 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("public:\n")
     for pred in sd.predicates:
         s.write("  bool " + pred + ";\n")
-    for st in sd.states:
-        s.write("  bool PREV_STATE_" + st.name + ";\n")
+#    for st in sd.states:
+#        s.write("  bool PREV_STATE_" + st.name + ";\n")
     s.write("\n  virtual common_behavior::PredicateList& operator=(const common_behavior::PredicateList& arg);\n")
 
     s.write("};\n\n")
@@ -80,27 +79,12 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("typedef boost::shared_ptr<const PredicateList > PredicateListConstPtr;\n\n")
 
     #
-    # errors
-    #
-    s.write("enum {\n")
-    for e in sd.errors:
-        s.write("  " + e + "_bit,\n")
-    s.write("  ERROR_ENUM_SIZE\n};\n\n")
-
-    s.write("typedef common_behavior::ConditionCause<ERROR_ENUM_SIZE > ErrorCause;\n")
-    s.write("typedef boost::shared_ptr<ErrorCause > ErrorCausePtr;\n")
-    s.write("typedef boost::shared_ptr<const ErrorCause > ErrorCauseConstPtr;\n\n")
-
-    s.write("std::string getErrorReasonStr(ErrorCauseConstPtr err);\n\n")
-
-    #
     # predicate function prototype
     #
 
     s.write("typedef bool (*predicateFunction)(\n")
     s.write("            const InputDataConstPtr&,\n")
-    s.write("            const std::vector<RTT::TaskContext*>&,\n")
-    s.write("            const std::string&);\n\n")
+    s.write("            const std::vector<RTT::TaskContext*>&);\n\n")
 
     s.write("class PredicateFactory\n")
     s.write("{\n")
