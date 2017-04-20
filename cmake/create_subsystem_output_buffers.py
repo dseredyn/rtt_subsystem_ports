@@ -37,7 +37,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("#include \"common_behavior/abstract_behavior.h\"\n")
     s.write("#include \"common_behavior/abstract_predicate_list.h\"\n\n")
 
-    for p_in in sd.ports_out:
+    for p_in in sd.buffers_out:
         s.write("#include \"" + p_in.type_pkg + "/" + p_in.type_name + ".h\"\n")
 
     s.write("#include <shm_comm/shm_channel.h>\n")
@@ -57,17 +57,17 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("public:\n")
     s.write("    explicit OutputBuffers(const std::string& name)\n")
     s.write("        : TaskContext(name, PreOperational)\n")
-    for p in sd.ports_out:
+    for p in sd.buffers_out:
         s.write("        , buf_" + p.alias + "_(NULL)\n")
         s.write("        , port_" + p.alias + "_in_(\"" + p.alias + "_INPORT\")\n")
 
     s.write("    {\n")
-    for p in sd.ports_out:
+    for p in sd.buffers_out:
         s.write("        this->ports()->addPort(port_" + p.alias + "_in_);\n")
 
     s.write("        this->addOperation(\"getDiag\", &OutputBuffers::getDiag, this, RTT::ClientThread);\n")
 
-    for p in sd.ports_out:
+    for p in sd.buffers_out:
         s.write("        addProperty(\"channel_name_" + p.alias + "\", channel_name_" + p.alias + "_);\n")
     s.write("    }\n\n")
 
@@ -84,7 +84,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("        bool create_channel;\n")
     s.write("        int result;\n")
 
-    for p in sd.ports_out:
+    for p in sd.buffers_out:
         s.write("        if (channel_name_" + p.alias + "_.empty()) {\n")
         s.write("            Logger::log() << Logger::Error << \"channel_name_" + p.alias + " is empty\" << Logger::endl;\n")
         s.write("            return false;\n")
@@ -138,7 +138,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("    }\n\n")
 
     s.write("    void cleanupHook() {\n")
-    for p in sd.ports_out:
+    for p in sd.buffers_out:
         s.write("        shm_release_writer(wr_" + p.alias + "_);\n")
     s.write("    }\n\n")
 
@@ -146,7 +146,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("    }\n\n")
 
     s.write("    bool startHook() {\n")
-    for p in sd.ports_out:
+    for p in sd.buffers_out:
         s.write("        void *pbuf_" + p.alias + " = NULL;\n")
         s.write("        if (shm_writer_buffer_get(wr_" + p.alias + "_, &pbuf_" + p.alias + ") < 0) {\n")
         s.write("            Logger::In in(\"" + package + "::OutputBuffers::startHook\");\n")
@@ -159,7 +159,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("    }\n\n")
 
     s.write("    void updateHook() {\n")
-    for p in sd.ports_out:
+    for p in sd.buffers_out:
         s.write("        if (port_" + p.alias + "_in_.read(cmd_out_" + p.alias + "_) == RTT::NewData) {\n")
 #        s.write("            diag_buf_ = cmd_out_" + p.alias + "_;\n")
     #    s.write("            diag_buf_valid_ = true;\n")
@@ -184,10 +184,10 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("private:\n")
 
     s.write("    // properties\n")
-    for p in sd.ports_out:
+    for p in sd.buffers_out:
         s.write("    std::string channel_name_" + p.alias + "_;\n")
 
-    for p in sd.ports_out:
+    for p in sd.buffers_out:
         s.write("    std::string shm_name_" + p.alias + "_;\n")
         s.write("    shm_writer_t* wr_" + p.alias + "_;\n")
         s.write("    " + p.getTypeCpp() + " *buf_" + p.alias + "_;\n")

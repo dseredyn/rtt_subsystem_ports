@@ -15,7 +15,7 @@ rtt_master_destinations()
 
 #find_package(genmsg REQUIRED)
 
-set(PORT_DEF_FILE ${PROJECT_SOURCE_DIR}/master/ports.xml)
+set(PORT_DEF_FILE ${PROJECT_SOURCE_DIR}/spec/subsystem.xml)
 
 ## Get all .msg files
 #if(${_package}_FOUND AND NOT ROSBUILD_init_called)
