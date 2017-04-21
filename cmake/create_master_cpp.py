@@ -213,7 +213,9 @@ def generate_boost_serialization(package, port_def, output_cpp):
 
     if sd.trigger_methods.onPeriod():
         if sd.use_sim_clock:
+            s.write("        if (use_sim_time) {\n")
             s.write("            owner->loadService(\"sim_clock_activity\");\n")
+            s.write("        }\n")
         s.write("        owner->setPeriod(" + str(sd.trigger_methods.onPeriod().value) + ");\n")
 
     for pred in sd.predicates:
