@@ -452,6 +452,13 @@ def generate_boost_serialization(package, port_def, output_cpp):
     #
     for st in sd.states:
         s.write("class state_" + st.name + " : public common_behavior::StateBase {\n")
+        s.write("protected:\n")
+        s.write("    const std::string error_no_cond;\n")
+        s.write("    const std::string error_too_many_cond;\n")
+        for i in range(len(st.next_states)):
+            ns_name = st.next_states[i][0]
+            s.write("    const std::string next_state_name_" + str(i) + ";\n")
+
         s.write("public:\n")
         s.write("    state_" + st.name + "()\n")
         s.write("        : common_behavior::StateBase(\"" + package + "_" + st.name + "\", \"" + st.name + "\",\n")
@@ -459,15 +466,15 @@ def generate_boost_serialization(package, port_def, output_cpp):
         for b in st.behaviors:
             s.write("                \"" + package + "_" + b + "\",\n")
         s.write("            }))\n")
+        s.write("        , error_no_cond(\"could not select next state\")\n")
+        s.write("        , error_too_many_cond(\"too many next states\")\n")
+        for i in range(len(st.next_states)):
+            ns_name = st.next_states[i][0]
+            s.write("        , next_state_name_" + str(i) + "(\"" + package + "_" + ns_name + "\")\n")
         s.write("    {\n")
         s.write("    }\n\n")
 
         s.write("    virtual const std::string& getNextState(const common_behavior::PredicateListConstPtr& pred_list) const {\n")
-        s.write("        static const std::string error_no_cond(\"could not select next state\");\n")
-        s.write("        static const std::string too_many_cond(\"too many next states\");\n")
-        for i in range(len(st.next_states)):
-            ns_name = st.next_states[i][0]
-            s.write("        static const std::string next_state_name_" + str(i) + "(\"" + package + "_" + ns_name + "\");\n")
         s.write("        PredicateListConstPtr p = boost::static_pointer_cast<const PredicateList >( pred_list );\n")
         s.write("        int conditions_true_count = 0;\n")
         for i in range(len(st.next_states)):
@@ -476,7 +483,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
             s.write("        conditions_true_count += (next_state_pred_val_" + str(i) + "?1:0);\n")
 
         s.write("        if (conditions_true_count > 1) {\n")
-        s.write("            return too_many_cond;\n")
+        s.write("            return error_too_many_cond;\n")
         s.write("        }\n")
 
         for i in range(len(st.next_states)):
