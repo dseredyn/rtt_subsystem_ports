@@ -40,5 +40,8 @@ install(PROGRAMS cmake/create_subsystem_input_buffers.py DESTINATION ${CATKIN_PA
 file(COPY cmake/create_subsystem_output_buffers.py DESTINATION "${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_SHARE_DESTINATION}/cmake")
 install(PROGRAMS cmake/create_subsystem_output_buffers.py DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/cmake)
 
+file(COPY cmake/create_msgs_from_ec_config.py DESTINATION "${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_SHARE_DESTINATION}/cmake")
+install(PROGRAMS cmake/create_msgs_from_ec_config.py DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/cmake)
+
 # This one will only be used by create_rtt_msgs with `rospack find rtt_subsystem_ports` => no devel-space installation
 #install(DIRECTORY rtt_subsystem_ports_pkg_template DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
