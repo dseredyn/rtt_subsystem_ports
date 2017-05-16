@@ -41,9 +41,13 @@ safe_execute_process(COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${CREATE_MSGS_FR
 
 #get_filename_component(ACTION_SHORT_NAME ${actionfile} NAME_WE)
 set(MESSAGE_DIR ${CMAKE_CURRENT_BINARY_DIR}/msg)
-set(OUTPUT_FILES
-  Test.msg
-)
+
+file(GLOB ARG_FILES RELATIVE "${MESSAGE_DIR}" "${MESSAGE_DIR}/*.msg")
+list(SORT ARG_FILES)
+
+set(OUTPUT_FILES ${ARG_FILES})
+#  Test.msg
+#)
 
 #_prepend_path(${MESSAGE_DIR}/ "${OUTPUT_FILES}" OUTPUT_FILES_W_PATH)
 

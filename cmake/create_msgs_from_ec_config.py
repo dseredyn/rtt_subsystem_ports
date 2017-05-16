@@ -8,21 +8,85 @@ import argparse
 
 import xml.dom.minidom as minidom
 
-class Data:
+class PdoEntry:
     def __init__(self):
+        self.index = None
+        self.subindex = None
         self.bit_len = None
         self.name = None
         self.data_type = None
 
+class Pdo:
+    def __init__(self):
+        self.type = None
+        self.name = None
+        self.Index = None
+        self.entries = None
+
 class Slave:
     def __init__(self):
         self.name = None
-        self.tx = []
-        self.rx = []
+        self.tx_pdo = []
+        self.rx_pdo = []
 
 def eprint(s):
     sys.stderr.write(s + '\n')
     sys.stderr.flush()
+
+def parsePdo(pdo):
+    p = Pdo()
+
+    if pdo.nodeName == "TxPdo":
+        p.type = "tx"
+    elif pdo.nodeName == "RxPdo":
+        p.type = "rx"
+    else:
+        raise Exception("wrong pdo type: " + pdo.nodeName)
+
+    Index = pdo.getElementsByTagName("Index")
+    p.index = Index[0].childNodes[0].data
+    Name = pdo.getElementsByTagName("Name")
+    p.name = Name[0].childNodes[0].data
+
+    entries = pdo.getElementsByTagName("Entry")
+    p.entries = []
+    for e in entries:
+        ent = PdoEntry()
+        ent.index = e.getElementsByTagName("Index")[0].childNodes[0].data
+        if len(e.getElementsByTagName("SubIndex")) > 0:
+            ent.subindex = e.getElementsByTagName("SubIndex")[0].childNodes[0].data
+        ent.bit_len = e.getElementsByTagName("BitLen")[0].childNodes[0].data
+        if len(e.getElementsByTagName("Name")) > 0:
+            ent.name = e.getElementsByTagName("Name")[0].childNodes[0].data
+        if len(e.getElementsByTagName("DataType")) > 0:
+            ent.data_type = e.getElementsByTagName("DataType")[0].childNodes[0].data
+        p.entries.append(ent)
+    return p
+        
+
+def parseSlave(slave):
+    sl = Slave()
+    Info = slave.getElementsByTagName("Info")
+    if len(Info) == 0:
+        sl.name = "UNKNOWN"
+    elif len(Info[0].getElementsByTagName("Name")) == 0:
+        sl.name = "UNKNOWN"
+    else:
+        Name = Info[0].getElementsByTagName("Name")[0]
+        sl.name = Name.childNodes[0].data
+
+    ProcessData = slave.getElementsByTagName("ProcessData")
+    if len(ProcessData) > 0:
+        TxPdo = ProcessData[0].getElementsByTagName("TxPdo")
+        for pdo in TxPdo:
+            p = parsePdo(pdo)
+            sl.tx_pdo.append(p)
+
+        RxPdo = ProcessData[0].getElementsByTagName("RxPdo")
+        for pdo in RxPdo:
+            p = parsePdo(pdo)
+            sl.rx_pdo.append(p)
+    return sl
 
 def generate_boost_serialization(package, ec_config_file, msg_output_dir):
     """
@@ -47,63 +111,40 @@ def generate_boost_serialization(package, ec_config_file, msg_output_dir):
     Slaves = Config[0].getElementsByTagName("Slave")
     slave_list = []
     for slave in Slaves:
-        sl = Slave()
-        Info = slave.getElementsByTagName("Info")
-        if len(Info) == 0:
-            sl.name = "UNKNOWN"
-        elif len(Info[0].getElementsByTagName("Name")) == 0:
-            sl.name = "UNKNOWN"
-        else:
-            Name = Info[0].getElementsByTagName("Name")[0]
-            sl.name = Name.childNodes[0].data
-
-#        s.write("# slave " + sl.name + "\n")
-        eprint("slave " + sl.name)
-
-        ProcessData = slave.getElementsByTagName("ProcessData")
-        if len(ProcessData) > 0:
-            TxPdo = ProcessData[0].getElementsByTagName("TxPdo")
-            if len(TxPdo) > 0:
-                Entry = TxPdo[0].getElementsByTagName("Entry")
-                for e in Entry:
-                    d = Data()
-                    d.bit_len = e.getElementsByTagName("BitLen")[0].childNodes[0].data
-                    if len(e.getElementsByTagName("Name")) > 0:
-                        d.name = e.getElementsByTagName("Name")[0].childNodes[0].data
-                        d.data_type = e.getElementsByTagName("DataType")[0].childNodes[0].data
-                    sl.tx.append(d)
-#                    s.write("#    TX: " + d.data_type + " " + d.name + "\n")
-
-            RxPdo = ProcessData[0].getElementsByTagName("RxPdo")
-            if len(RxPdo) > 0:
-                Entry = RxPdo[0].getElementsByTagName("Entry")
-                for e in Entry:
-                    d = Data()
-                    d.bit_len = e.getElementsByTagName("BitLen")[0].childNodes[0].data
-                    if len(e.getElementsByTagName("Name")) > 0:
-                        d.name = e.getElementsByTagName("Name")[0].childNodes[0].data
-                        d.data_type = e.getElementsByTagName("DataType")[0].childNodes[0].data
-                    sl.rx.append(d)
-#                    s.write("#    RX: " + d.data_type + " " + d.name + "\n")
+        sl = parseSlave(slave)
         slave_list.append(sl)
     
 #    mcd = dom.getElementsByTagName("mcd")
 #    if len(mcd) != 1:
 #        return (ss_history, ret_period)
 
-
+#        eprint("slave " + sl.name)
 
     for sl in slave_list:
-        s.write("# slave " + sl.name + "\n")
-        for tx in sl.tx:
-            if tx.name:
-                s.write("#    TX: " + tx.data_type + " " + tx.name + "\n")
-        for rx in sl.rx:
-            if rx.name:
-                s.write("#    RX: " + rx.data_type + " " + rx.name + "\n")
+        s.write("# slave '" + sl.name + "'\n")
+        for tx in sl.tx_pdo:
+            s.write("#    TX PDO: '" + tx.name + "'\n")
+            for e in tx.entries:
+                name = e.name
+                if not name:
+                    name = "unnamed"
+                data_type = e.data_type
+                if not data_type:
+                    data_type = "unknown"
+                s.write("#        index: " + str(e.index) + ", name: '" + name + "', type: " + data_type + "\n")
+        for rx in sl.rx_pdo:
+            s.write("#    RX PDO: '" + rx.name + "'\n")
+            for e in rx.entries:
+                name = e.name
+                if not name:
+                    name = "unnamed"
+                data_type = e.data_type
+                if not data_type:
+                    data_type = "unknown"
+                s.write("#        index: " + str(e.index) + ", name: '" + name + "', type: " + data_type + "\n")
         s.write("\n")
 
-    output_msg = msg_output_dir + "/Test.msg"
+    output_msg = msg_output_dir + "/Test2.msg"
 
     (output_dir,filename) = os.path.split(output_msg)
     try:
