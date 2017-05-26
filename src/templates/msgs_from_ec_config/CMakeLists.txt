@@ -64,11 +64,17 @@ set(OUTPUT_FILES ${ARG_FILES})
 #  safe_execute_process(COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${GENACTION_BIN} ${actionfile} -o ${MESSAGE_DIR})
 #endif()
 
-add_message_files(
-  BASE_DIR ${MESSAGE_DIR}
-  FILES ${OUTPUT_FILES})
+#add_message_files(
+#  BASE_DIR ${MESSAGE_DIR}
+#  FILES ${OUTPUT_FILES})
 
-generate_messages()
+#generate_messages()
+
 #catkin_package()
 #  CATKIN_DEPENDS message_runtime)
+
+#set(${_package}_MESSAGE_FILES ${${_package}_MESSAGE_FILES} PARENT_SCOPE)
+set(MESSAGE_DIR "${MESSAGE_DIR}" PARENT_SCOPE)
+set(OUTPUT_FILES "${OUTPUT_FILES}" PARENT_SCOPE)
+
 
