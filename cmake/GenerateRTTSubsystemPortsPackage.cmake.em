@@ -77,9 +77,23 @@ macro(rtt_subsystem_ports_debug)
   endif()
 endmacro()
 
-macro(ros_generate_rtt_subsystem_ports package)
-  set(_package ${package})
-  add_subdirectory(${rtt_subsystem_ports_DIR}/../src/templates/subsystem_ports ${package}_subsystem_ports)
+macro(ros_generate_rtt_subsystem_ports)
+  set( _OPTIONS_ARGS )
+  set( _ONE_VALUE_ARGS PACKAGE )
+  set( _MULTI_VALUE_ARGS MESSAGES )
+
+  cmake_parse_arguments( _ROS_GENERATE_RTT_SUBSYSTEM_PORTS "${_OPTIONS_ARGS}" "${_ONE_VALUE_ARGS}" "${_MULTI_VALUE_ARGS}" ${ARGN} )
+
+  # Mandatory
+  if( _ROS_GENERATE_RTT_SUBSYSTEM_PORTS_PACKAGE )
+#    message( ERROR "inside PACKAGE=${_ROS_GENERATE_RTT_SUBSYSTEM_PORTS_PACKAGE}" )
+  else()
+    message( FATAL_ERROR "ros_generate_rtt_subsystem_ports: 'PACKAGE' argument required." )
+  endif()
+
+  set(_package "${_ROS_GENERATE_RTT_SUBSYSTEM_PORTS_PACKAGE}")
+  set(_messages "${_ROS_GENERATE_RTT_SUBSYSTEM_PORTS_MESSAGES}")
+  add_subdirectory(${rtt_subsystem_ports_DIR}/../src/templates/subsystem_ports ${_package}_subsystem_ports)
 endmacro(ros_generate_rtt_subsystem_ports)
 
 macro(ros_generate_rtt_master)
@@ -94,4 +108,6 @@ macro(generate_msgs_from_ec_config config_file)
   set(_config_file ${config_file})
   add_subdirectory(${rtt_subsystem_ports_DIR}/../src/templates/msgs_from_ec_config ${PROJECT_NAME}_msgs_from_ec_config)
 endmacro(generate_msgs_from_ec_config)
+
+#macro(generate_ec_msg_converter config_file)
 

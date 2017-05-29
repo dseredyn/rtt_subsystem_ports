@@ -119,14 +119,19 @@ foreach( FILE ${MSG_FILES} )
   list(APPEND rtt-${_package}-library_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/ros_${ROSMSGNAME}_subsystem_ports.cpp )
   add_file_dependencies(${CMAKE_CURRENT_BINARY_DIR}/ros_${ROSMSGNAME}_subsystem_ports.cpp ${CMAKE_CURRENT_LIST_FILE} ${_ROSMSG_GENERATED_SUBSYSTEM_PORTS_HEADER})
 
-  add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${_package}_${ROSMSGNAME}_components.cpp
-    COMMAND ${CREATE_COMPONENTS_SOURCE_EXE_PATH} ${_package} "${_package}/${ROSMSGNAME}" ${FILE} ${CMAKE_CURRENT_BINARY_DIR}/${_package}_${ROSMSGNAME}_components.cpp
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-    DEPENDS ${FILE} ${${_package}_EXPORTED_TARGETS} ${CREATE_COMPONENTS_SOURCE_EXE_PATH}
-    VERBATIM)
-  list(APPEND rtt-${_package}-components_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${_package}_${ROSMSGNAME}_components.cpp )
-  add_file_dependencies(${CMAKE_CURRENT_BINARY_DIR}/${_package}_${ROSMSGNAME}_components.cpp ${CMAKE_CURRENT_LIST_FILE} ${_ROSMSG_GENERATED_SUBSYSTEM_PORTS_HEADER})
+
+#  get_filename_component(MSG_FILENAME <FileName> <COMP> [CACHE])
+  list (FIND _messages "${ROSMSGNAME}" _index)
+  if (${_index} GREATER -1)
+      add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${_package}_${ROSMSGNAME}_components.cpp
+        COMMAND ${CREATE_COMPONENTS_SOURCE_EXE_PATH} ${_package} "${_package}/${ROSMSGNAME}" ${FILE} ${CMAKE_CURRENT_BINARY_DIR}/${_package}_${ROSMSGNAME}_components.cpp
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+        DEPENDS ${FILE} ${${_package}_EXPORTED_TARGETS} ${CREATE_COMPONENTS_SOURCE_EXE_PATH}
+        VERBATIM)
+      list(APPEND rtt-${_package}-components_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/${_package}_${ROSMSGNAME}_components.cpp )
+      add_file_dependencies(${CMAKE_CURRENT_BINARY_DIR}/${_package}_${ROSMSGNAME}_components.cpp ${CMAKE_CURRENT_LIST_FILE} ${_ROSMSG_GENERATED_SUBSYSTEM_PORTS_HEADER})
+  endif()
 
 endforeach( FILE ${MSG_FILES} )
 

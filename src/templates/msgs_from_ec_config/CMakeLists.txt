@@ -70,10 +70,61 @@ set(OUTPUT_FILES ${ARG_FILES})
 
 #generate_messages()
 
+#  cmake_parse_arguments(ARG "" "" "DEPENDENCIES;LANGS" ${ARGN})
+
+#  if(${PROJECT_NAME}_GENERATE_MESSAGES)
+#    message(FATAL_ERROR "generate_messages() must only be called once per project'")
+#  endif()
+
+#  if(ARG_UNPARSED_ARGUMENTS)
+#    message(FATAL_ERROR "generate_messages() called with unused arguments: ${ARG_UNPARSED_ARGUMENTS}")
+#  endif()
+
+#  if(${PROJECT_NAME}_CATKIN_PACKAGE)
+#    message(FATAL_ERROR "generate_messages() must be called before catkin_package() in project '${PROJECT_NAME}'")
+#  endif()
+
+#  set(ARG_MESSAGES ${${PROJECT_NAME}_MESSAGE_FILES})
+#  set(ARG_SERVICES ${${PROJECT_NAME}_SERVICE_FILES})
+#  set(ARG_DEPENDENCIES ${ARG_DEPENDENCIES})
+
+#set(GEN_LANGS "${GEN_LANGS}" PARENT_SCOPE)
+#set(genmsg_CMAKE_DIR "${genmsg_CMAKE_DIR}" PARENT_SCOPE)
+#set(PKG_MSG_INCLUDE_DIRS "${PKG_MSG_INCLUDE_DIRS}" PARENT_SCOPE)
+#set(PKG_MSG_FILES "${PKG_MSG_FILES}" PARENT_SCOPE)
+#set(PKG_SRV_FILES "${PKG_SRV_FILES}" PARENT_SCOPE)
+#set(MSG_INCLUDE_DIRS "${MSG_INCLUDE_DIRS}" PARENT_SCOPE)
+#set(${PROJECT_NAME}_GENERATE_MESSAGES "${${PROJECT_NAME}_GENERATE_MESSAGES}" PARENT_SCOPE)
+
+#set(package_has_static_sources "${package_has_static_sources}" PARENT_SCOPE)
+
+#set(workspaces "${workspaces}" PARENT_SCOPE)
+
+
+#set(ARG_MESSAGES "${ARG_MESSAGES}" PARENT_SCOPE)
+#set(ARG_SERVICES "${ARG_SERVICES}" PARENT_SCOPE)
+#set(ARG_DEPENDENCIES "${ARG_DEPENDENCIES}" PARENT_SCOPE)
+
+#set(all_deps "${all_deps}" PARENT_SCOPE)
+#set(handled_deps "${handled_deps}" PARENT_SCOPE)
+#set(pending_deps "${pending_deps}" PARENT_SCOPE)
+
+#set(MSG_I_FLAGS "${MSG_I_FLAGS}" PARENT_SCOPE)
+
+
+#message(ERROR "${PROJECT_NAME}_GENERATE_MESSAGES: ${${PROJECT_NAME}_GENERATE_MESSAGES}")
+#message(ERROR "PKG_MSG_FILES: ${PKG_MSG_FILES}")
+
+#set(ARG_DIRECTORY "${ARG_DIRECTORY}" PARENT_SCOPE)
+
+#set(${PROJECT_NAME}_CFG_EXTRAS "${${PROJECT_NAME}_CFG_EXTRAS}" PARENT_SCOPE)
+
+
 #catkin_package()
 #  CATKIN_DEPENDS message_runtime)
 
 #set(${_package}_MESSAGE_FILES ${${_package}_MESSAGE_FILES} PARENT_SCOPE)
+
 set(MESSAGE_DIR "${MESSAGE_DIR}" PARENT_SCOPE)
 set(OUTPUT_FILES "${OUTPUT_FILES}" PARENT_SCOPE)
 
