@@ -1,10 +1,10 @@
-find_package(OROCOS-RTT 2.0.0 COMPONENTS rtt-scripting rtt-marshalling)
-if (NOT OROCOS-RTT_FOUND)
-  message(FATAL_ERROR "\n   RTT not found. Is the version correct? Use the CMAKE_PREFIX_PATH cmake or environment variable to point to the installation directory of RTT.")
-else()
-  include(${OROCOS-RTT_USE_FILE_PATH}/UseOROCOS-RTT.cmake)
-  #add_definitions( -DRTT_COMPONENT )
-endif()
+#find_package(OROCOS-RTT 2.0.0 COMPONENTS rtt-scripting rtt-marshalling)
+#if (NOT OROCOS-RTT_FOUND)
+#  message(FATAL_ERROR "\n   RTT not found. Is the version correct? Use the CMAKE_PREFIX_PATH cmake or environment variable to point to the installation directory of RTT.")
+#else()
+#  include(${OROCOS-RTT_USE_FILE_PATH}/UseOROCOS-RTT.cmake)
+#  #add_definitions( -DRTT_COMPONENT )
+#endif()
 
 include(AddFileDependencies)
 
@@ -37,7 +37,9 @@ set(ECCONFIGFILE ${_config_file})
 
 set(ECCONFIG_DIR "${PROJECT_SOURCE_DIR}/ec_config")
 
-safe_execute_process(COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${CREATE_MSGS_FROM_EC_CONFIG_EXE_PATH} ${_package} ${ECCONFIG_DIR}/${ECCONFIGFILE} ${CATKIN_DEVEL_PREFIX}/share/${PROJECT_NAME}/msg)
+set(EC_MSG_CONVERTER_H_OUTPUT ${msgs_from_ec_config_GENERATED_HEADERS_OUTPUT_DIRECTORY}/${_package}/ec_msg_converter.h)
+
+safe_execute_process(COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${CREATE_MSGS_FROM_EC_CONFIG_EXE_PATH} ${_package} ${ECCONFIG_DIR}/${ECCONFIGFILE} ${CATKIN_DEVEL_PREFIX}/share/${PROJECT_NAME}/msg ${CMAKE_CURRENT_BINARY_DIR}/ec_msg_converter.cpp ${EC_MSG_CONVERTER_H_OUTPUT})
 #safe_execute_process(COMMAND ${CATKIN_ENV} ${PYTHON_EXECUTABLE} ${CREATE_MSGS_FROM_EC_CONFIG_EXE_PATH} ${_package} ${ECCONFIG_DIR}/${ECCONFIGFILE} ${CMAKE_CURRENT_BINARY_DIR}/msg)
 
 #get_filename_component(ACTION_SHORT_NAME ${actionfile} NAME_WE)
@@ -46,6 +48,14 @@ set(MESSAGE_DIR ${CATKIN_DEVEL_PREFIX}/share/${PROJECT_NAME}/msg)
 
 file(GLOB ARG_FILES RELATIVE "${MESSAGE_DIR}" "${MESSAGE_DIR}/*.msg")
 list(SORT ARG_FILES)
+
+
+#ADD_CUSTOM_TARGET(${PROJECT_NAME}_MASTER_HEADERS DEPENDS ${EC_MSG_CONVERTER_H_OUTPUT})
+#set(EC_MSG_CONVERTER_H_OUTPUT ${msgs_from_ec_config_GENERATED_HEADERS_OUTPUT_DIRECTORY}/orocos/${_package}/master.h)
+#include_directories(${msgs_from_ec_config_GENERATED_HEADERS_OUTPUT_DIRECTORY}/orocos)
+#set(PROPAGATED_UP_INCLUDE_DIRECTORIES ${msgs_from_ec_config_GENERATED_HEADERS_OUTPUT_DIRECTORY}/orocos PARENT_SCOPE)
+
+
 
 set(OUTPUT_FILES ${ARG_FILES})
 #  Test.msg
@@ -119,6 +129,7 @@ set(OUTPUT_FILES ${ARG_FILES})
 
 #set(${PROJECT_NAME}_CFG_EXTRAS "${${PROJECT_NAME}_CFG_EXTRAS}" PARENT_SCOPE)
 
+set(EC_MSG_CONVERTER_FILES "${CMAKE_CURRENT_BINARY_DIR}/ec_msg_converter.cpp" PARENT_SCOPE)
 
 #catkin_package()
 #  CATKIN_DEPENDS message_runtime)
@@ -128,4 +139,23 @@ set(OUTPUT_FILES ${ARG_FILES})
 set(MESSAGE_DIR "${MESSAGE_DIR}" PARENT_SCOPE)
 set(OUTPUT_FILES "${OUTPUT_FILES}" PARENT_SCOPE)
 
+# Set the subsystem ports sources generation script path
+#set(CREATE_CONVERTER_SOURCE_EXE_PATH ${rtt_subsystem_ports_DIR}/create_subsystem_ports_source.py)
+
+#add_custom_command(
+#    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ros_${ROSMSGNAME}_subsystem_ports.cpp
+#    COMMAND ${CREATE_CONVERTER_SOURCE_EXE_PATH} ${_package} "${_package}/${ROSMSGNAME}" ${FILE} ${CMAKE_CURRENT_BINARY_DIR}/ros_${ROSMSGNAME}_subsystem_ports.cpp
+#    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+#    DEPENDS ${FILE} ${${_package}_EXPORTED_TARGETS} ${CREATE_CONVERTER_SOURCE_EXE_PATH}
+#    VERBATIM)
+#list(APPEND rtt-${_package}-library_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/ros_${ROSMSGNAME}_subsystem_ports.cpp )
+#add_file_dependencies(${CMAKE_CURRENT_BINARY_DIR}/ros_${ROSMSGNAME}_subsystem_ports.cpp ${CMAKE_CURRENT_LIST_FILE} ${_ROSMSG_GENERATED_SUBSYSTEM_PORTS_HEADER})
+
+
+# Install generated header files (dependent packages might need them)
+if(DEFINED msgs_from_ec_config_GENERATED_HEADERS_INSTALL_DESTINATION)
+  install(
+    DIRECTORY "${msgs_from_ec_config_GENERATED_HEADERS_OUTPUT_DIRECTORY}/${_package}"
+    DESTINATION "${msgs_from_ec_config_GENERATED_HEADERS_INSTALL_DESTINATION}")
+endif()
 
