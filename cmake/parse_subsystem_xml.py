@@ -22,6 +22,7 @@ class InputPort:
         self.type_pkg = type_s[0]
         self.type_name = type_s[1]
         self.side = str_to_side(xml.getAttribute("side"))
+        self.converter = xml.getAttribute("converter")
 
     def __init__(self, xml=None):
         if xml:
@@ -42,6 +43,7 @@ class OutputPort:
         self.type_pkg = type_s[0]
         self.type_name = type_s[1]
         self.side = str_to_side(xml.getAttribute("side"))
+        self.converter = xml.getAttribute("converter")
 
     def __init__(self, xml=None):
         if xml:

@@ -6,6 +6,9 @@ else()
   #add_definitions( -DRTT_COMPONENT )
 endif()
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" PARENT_SCOPE)
+
 include(AddFileDependencies)
 
 # Configure source and destination paths of generated files

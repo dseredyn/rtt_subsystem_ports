@@ -40,6 +40,11 @@ def generate_boost_serialization(package, port_def, output_cpp):
     for p_in in sd.buffers_out:
         s.write("#include \"" + p_in.type_pkg + "/" + p_in.type_name + ".h\"\n")
 
+    for p in sd.buffers_out:
+        if p.converter:
+            s.write("#include <common_interfaces/abstract_buffer_converter.h>\n")
+            break
+
     s.write("#include <shm_comm/shm_channel.h>\n")
     s.write("#include <vector>\n")
     s.write("#include <string>\n")
@@ -85,6 +90,13 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("        int result;\n")
 
     for p in sd.buffers_out:
+        if p.converter:
+            s.write("        converter_" + p.alias + "_ = common_interfaces::BufferConverterFactory<" + p.getTypeCpp() + " >::Instance()->Create(\"" + p.converter + "\");\n")
+            s.write("        if (!converter_" + p.alias + "_) {\n")
+            s.write("            Logger::log() << Logger::Error << \"could not find buffer data converter '" + p.converter + "'\" << Logger::endl;\n")
+            s.write("            return false;\n")
+            s.write("        }\n")
+
         s.write("        if (channel_name_" + p.alias + "_.empty()) {\n")
         s.write("            Logger::log() << Logger::Error << \"channel_name_" + p.alias + " is empty\" << Logger::endl;\n")
         s.write("            return false;\n")
@@ -121,7 +133,10 @@ def generate_boost_serialization(package, port_def, output_cpp):
         s.write("        }\n")
 
         s.write("        if (create_channel) {\n")
-        s.write("            result = shm_create_channel(shm_name_" + p.alias + "_.c_str(), sizeof(" + p.getTypeCpp() + "), 1, true);\n")
+        if p.converter:
+            s.write("            result = shm_create_channel(shm_name_" + p.alias + "_.c_str(), converter_" + p.alias + "_->getDataSize(), 1, true);\n")
+        else:
+            s.write("            result = shm_create_channel(shm_name_" + p.alias + "_.c_str(), sizeof(" + p.getTypeCpp() + "), 1, true);\n")
         s.write("            if (result != 0) {\n")
         s.write("                Logger::log() << Logger::Error << \"create_shm_object(" + p.alias + "): error: \" << result << \"   errno: \" << errno << Logger::endl;\n")
         s.write("                return false;\n")
@@ -153,7 +168,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
         s.write("            Logger::log() << Logger::Error << \"shm_writer_buffer_get(" + p.alias + ")\" << Logger::endl;\n")
         s.write("            return false;\n")
         s.write("        }\n")
-        s.write("        buf_" + p.alias + "_ = reinterpret_cast<" + p.getTypeCpp() + "*>(pbuf_" + p.alias + ");\n")
+        s.write("        buf_" + p.alias + "_ = pbuf_" + p.alias + ";\n")
 
     s.write("        return true;\n")
     s.write("    }\n\n")
@@ -169,12 +184,15 @@ def generate_boost_serialization(package, port_def, output_cpp):
         s.write("                error();\n")
         s.write("            }\n")
         s.write("            else {\n")
-        s.write("                *buf_" + p.alias + "_ = cmd_out_" + p.alias + "_;\n")
+        if p.converter:
+            s.write("                converter_" + p.alias + "_->convertFromMsg(cmd_out_" + p.alias + "_, reinterpret_cast<uint8_t* >(buf_" + p.alias + "_));\n")
+        else:
+            s.write("                *reinterpret_cast<" + p.getTypeCpp() + "*>(buf_" + p.alias + "_) = cmd_out_" + p.alias + "_;\n")
         s.write("                shm_writer_buffer_write(wr_" + p.alias + "_);\n")
         s.write("            }\n")
         s.write("            void *pbuf = NULL;\n")
         s.write("            shm_writer_buffer_get(wr_" + p.alias + "_, &pbuf);\n")
-        s.write("            buf_" + p.alias + "_ = reinterpret_cast<" + p.getTypeCpp() + "*>(pbuf);\n")
+        s.write("            buf_" + p.alias + "_ = pbuf;\n")
         s.write("        }\n")
     #    s.write("        else {\n")
     #    s.write("            diag_buf_valid_ = false;\n")
@@ -190,9 +208,11 @@ def generate_boost_serialization(package, port_def, output_cpp):
     for p in sd.buffers_out:
         s.write("    std::string shm_name_" + p.alias + "_;\n")
         s.write("    shm_writer_t* wr_" + p.alias + "_;\n")
-        s.write("    " + p.getTypeCpp() + " *buf_" + p.alias + "_;\n")
+        s.write("    void *buf_" + p.alias + "_;\n")
         s.write("    " + p.getTypeCpp() + " cmd_out_" + p.alias + "_;\n")
         s.write("    RTT::InputPort<" + p.getTypeCpp() + " > port_" + p.alias + "_in_;\n")
+        if p.converter:
+            s.write("    shared_ptr<common_interfaces::BufferConverter<" + p.getTypeCpp() + " > >converter_" + p.alias + "_;\n")
 
     s.write("};\n\n")
 
