@@ -172,7 +172,9 @@ class TreeNode:
         self.parent_name = None
         self.variable = None
 
-def generateMsgsFromProcessImage(variables, msg_output_dir, top_level_name):
+def generateMsgsFromProcessImage(interface, msg_output_dir, top_level_name):
+    variables = interface.variables
+
     if len(variables) == 0:
         return
 
@@ -190,6 +192,9 @@ def generateMsgsFromProcessImage(variables, msg_output_dir, top_level_name):
     leafs = {}
     top_level = []
     for v in variables:
+        if int(v.BitOffs/8) >= interface.ByteSize:
+            eprint("warning: variable " + v.Name + " is outside ProcessImage")
+            continue
         leafs[ v.Name ] = v
         names = []
         idx = v.Name.find(".")
@@ -258,12 +263,12 @@ def generateMsgsFromProcessImage(variables, msg_output_dir, top_level_name):
         data_name = ch[ch.rfind(".")+1:]
         if ch in leafs:
             if leafs[ch].DataType in map_data_types:
-                s.write(map_data_types[leafs[ch].DataType] + " data_" + nameToIdentifier(data_name) + "    # subsystem_buffer{type: port}\n")
+                s.write(map_data_types[leafs[ch].DataType] + " " + nameToIdentifier(data_name) + "    # subsystem_buffer{type: port}\n")
             else:
                 array_size = int(math.floor(float(leafs[ch].BitSize)/8.0))
-                s.write("byte[" + str(array_size) + "] data_" + nameToIdentifier(data_name) + "    # subsystem_buffer{type: port}\n")
+                s.write("byte[" + str(array_size) + "] " + nameToIdentifier(data_name) + "    # subsystem_buffer{type: port}\n")
         else:
-            s.write(top_level_name + nameToIdentifier(ch) + " data_" + nameToIdentifier(data_name) + "    # subsystem_buffer{type: container}\n")
+            s.write(top_level_name + nameToIdentifier(ch) + " " + nameToIdentifier(data_name) + "    # subsystem_buffer{type: container}\n")
 
     msg_name = top_level_name + ".msg"
 
@@ -279,6 +284,57 @@ def generateMsgsFromProcessImage(variables, msg_output_dir, top_level_name):
     print >> f, s.getvalue()
 
     s.close()
+
+def genConvertFromMsg(interface, s):
+    for v in interface.variables:
+        if int(v.BitOffs/8) >= interface.ByteSize:
+            continue
+        name_scopes = v.Name.split(".")
+        name_id = ""
+        sep = ""
+        for ns in name_scopes:
+            name_id = name_id + sep + nameToIdentifier(ns)
+            sep = "."
+
+        if v.DataType == 'BIT':
+            masks = [0xFE, 0xFD, 0xFB, 0xF7, 0xEF, 0xDF, 0xBF, 0x7F]
+            s.write("    data[" + str(int(v.BitOffs/8)) + "] = (data[" + str(int(v.BitOffs/8)) + "]&" + str(masks[v.BitOffs%8]) + ") | (msg." + name_id + "<<" + str(v.BitOffs%8) + ");\n")
+        else:
+            if (v.BitOffs%8) != 0:
+                eprint("wrong bit offset, variable name: " + v.Name + ", BitOffs: " + str(v.BitOffs) + ", DataType: " + v.DataType)
+                raise
+            if (v.BitSize%8) != 0:
+                eprint("wrong bit size, variable name: " + v.Name + ", BitSize: " + str(v.BitSize) + ", DataType: " + v.DataType)
+                raise
+            byte_size = int(v.BitSize/8)
+            byte_offs = int(v.BitOffs/8)
+            for i in range(byte_size):
+                s.write("    data[" + str(int(v.BitOffs/8) + i) + "] = reinterpret_cast<const uint8_t*>(&msg." + name_id + ")[" + str(i) + "];\n")
+
+def genConvertToMsg(interface, s):
+    for v in interface.variables:
+        if int(v.BitOffs/8) >= interface.ByteSize:
+            continue
+        name_scopes = v.Name.split(".")
+        name_id = ""
+        sep = ""
+        for ns in name_scopes:
+            name_id = name_id + sep + nameToIdentifier(ns)
+            sep = "."
+
+        if v.DataType == 'BIT':
+            s.write("    msg." + name_id + " = (data[" + str(int(v.BitOffs/8)) + "]>>" + str(v.BitOffs%8) + ")&1;\n")
+        else:
+            if (v.BitOffs%8) != 0:
+                eprint("wrong bit offset, variable name: " + v.Name + ", BitOffs: " + str(v.BitOffs) + ", DataType: " + v.DataType)
+                raise
+            if (v.BitSize%8) != 0:
+                eprint("wrong bit size, variable name: " + v.Name + ", BitSize: " + str(v.BitSize) + ", DataType: " + v.DataType)
+                raise
+            byte_size = int(v.BitSize/8)
+            byte_offs = int(v.BitOffs/8)
+            for i in range(byte_size):
+                s.write("    reinterpret_cast<uint8_t*>(&msg." + name_id + ")[" + str(i) + "] = data[" + str(int(v.BitOffs/8) + i) + "];\n")
 
 def generate_msgs(package, ec_config_file, msg_output_dir, ec_msg_converter_filename, ec_msg_converter_h_filename):
     """
@@ -312,8 +368,8 @@ def generate_msgs(package, ec_config_file, msg_output_dir, ec_msg_converter_file
     ProcessImageXml = Config[0].getElementsByTagName("ProcessImage")
     pi = parseProcessImage( ProcessImageXml[0] )
     
-    generateMsgsFromProcessImage(pi.Inputs.variables, msg_output_dir, "EcInput")
-    generateMsgsFromProcessImage(pi.Outputs.variables, msg_output_dir, "EcOutput")
+    generateMsgsFromProcessImage(pi.Inputs, msg_output_dir, "EcInput")
+    generateMsgsFromProcessImage(pi.Outputs, msg_output_dir, "EcOutput")
 
     s = StringIO()
     s.write("// autogenerated by rtt_subsystem_ports/create_msgs_from_ec_config.py\n")
@@ -326,16 +382,44 @@ def generate_msgs(package, ec_config_file, msg_output_dir, ec_msg_converter_file
 #    s.write("#include <rtt/Component.hpp>\n")
 #    s.write("#include <rtt/Logger.hpp>\n")
     s.write("#include \"" + package + "/EcInput.h\"\n")
-    s.write("#include \"" + package + "/EcOutput.h\"\n\n")
+    s.write("#include \"" + package + "/EcOutput.h\"\n")
+    s.write("#include \"" + package + "/ec_msg_converter.h\"\n\n")
 
 #    s.write("using namespace RTT;\n\n")
 
     s.write("namespace " + package + " {\n")
 
-    s.write("void convert(const EcInput& msg, boost::array<uint8_t, " + str(pi.Inputs.ByteSize) + " > &data) {\n")
+#    class Variable:
+#        def __init__(self):
+#            self.Name = None
+#            self.Comment = None
+#            self.DataType = None
+#            self.BitSize = None
+#            self.BitOffs = None
+
+#    class Interface:
+#        def __init__(self):
+#            self.ByteSize = None
+#            self.variables = None
+
+#    def __init__(self):
+#        self.Inputs = None
+#        self.Outputs = None
+
+    s.write("void convert(const EcInput& msg, EcInputByteArray &data) {\n")
+    genConvertFromMsg(pi.Inputs, s)
     s.write("}\n")
 
-    s.write("void convert(const boost::array<uint8_t, " + str(pi.Inputs.ByteSize) + " > &data, EcInput& msg) {\n")
+    s.write("void convert(const EcInputByteArray &data, EcInput& msg) {\n")
+    genConvertToMsg(pi.Inputs, s)
+    s.write("}\n")
+
+    s.write("void convert(const EcOutput& msg, EcOutputByteArray &data) {\n")
+    genConvertFromMsg(pi.Outputs, s)
+    s.write("}\n")
+
+    s.write("void convert(const EcOutputByteArray &data, EcOutput& msg) {\n")
+    genConvertToMsg(pi.Outputs, s)
     s.write("}\n")
 
 #    s.write("class BypassComponent: public RTT::TaskContext {\n")
@@ -391,11 +475,16 @@ def generate_msgs(package, ec_config_file, msg_output_dir, ec_msg_converter_file
 
     s.write("#include \"" + package + "/EcInput.h\"\n")
     s.write("#include \"" + package + "/EcOutput.h\"\n\n")
-    s.write("#include \"" + package + "/ec_msg_converter.h\"\n\n")
     s.write("namespace " + package + " {\n")
 
-    s.write("void convert(const EcInput& msg, boost::array<uint8_t, " + str(pi.Inputs.ByteSize) + " > &data);\n")
-    s.write("void convert(const boost::array<uint8_t, " + str(pi.Inputs.ByteSize) + " > &data, EcInput& msg);\n")
+    s.write("typedef boost::array<uint8_t, " + str(pi.Inputs.ByteSize) + " > EcInputByteArray;\n")
+    s.write("typedef boost::array<uint8_t, " + str(pi.Outputs.ByteSize) + " > EcOutputByteArray;\n\n")
+
+    s.write("void convert(const EcInput& msg, EcInputByteArray &data);\n")
+    s.write("void convert(const EcInputByteArray &data, EcInput& msg);\n")
+
+    s.write("void convert(const EcOutput& msg, EcOutputByteArray &data);\n")
+    s.write("void convert(const EcOutputByteArray &data, EcOutput& msg);\n")
 
     s.write("}   //namespace " + package + "\n")
 
