@@ -381,6 +381,8 @@ def generate_msgs(package, ec_config_file, msg_output_dir, ec_msg_converter_file
 #    s.write("#include <rtt/RTT.hpp>\n")
 #    s.write("#include <rtt/Component.hpp>\n")
 #    s.write("#include <rtt/Logger.hpp>\n")
+    s.write("#include <common_interfaces/abstract_buffer_converter.h>\n\n")
+
     s.write("#include \"" + package + "/EcInput.h\"\n")
     s.write("#include \"" + package + "/EcOutput.h\"\n")
     s.write("#include \"" + package + "/ec_msg_converter.h\"\n\n")
@@ -406,6 +408,18 @@ def generate_msgs(package, ec_config_file, msg_output_dir, ec_msg_converter_file
 #        self.Inputs = None
 #        self.Outputs = None
 
+    s.write("class EcInputBufferConverter : public BufferConverter<EcInput > {\n")
+    s.write("public:\n")
+    s.write("    void convertToMsg(const uint8_t*, EcInput&) {}\n")
+    s.write("    void convertFromMsg(const EcInput&, uint8_t*) {}\n")
+    s.write("};\n")
+
+    s.write("class EcOutputBufferConverter : public BufferConverter<EcOutput > {\n")
+    s.write("public:\n")
+    s.write("    void convertToMsg(const uint8_t*, EcOutput&) {}\n")
+    s.write("    void convertFromMsg(const EcOutput&, uint8_t*) {}\n")
+    s.write("};\n")
+
     s.write("void convert(const EcInput& msg, EcInputByteArray &data) {\n")
     genConvertFromMsg(pi.Inputs, s)
     s.write("}\n")
@@ -422,40 +436,10 @@ def generate_msgs(package, ec_config_file, msg_output_dir, ec_msg_converter_file
     genConvertToMsg(pi.Outputs, s)
     s.write("}\n")
 
-#    s.write("class BypassComponent: public RTT::TaskContext {\n")
-#    s.write("class BypassComponent {\n")
-#    s.write("public:\n")
-#    s.write("    explicit BypassComponent(const std::string &name)\n")
-#    s.write("        : TaskContext(name, PreOperational)\n")
-#    s.write("    { }\n")
-#    s.write("    bool configureHook() { return true; }\n")
-#    s.write("    bool startHook() { return true; }\n")
-#    s.write("    void stopHook() {}\n")
-#    s.write("    void updateHook() {}\n")
-#    s.write("    std::string getDiag() { return \"\"; }\n")
-#    s.write("};\n")
-
-#private:
-#    typedef Eigen::Matrix<double, 4, 1 > HandDofs;
-#    RTT::InputPort<ArmJoints > port_cmd_rArm_t_in_;
-#    velma_core_cs_ve_body_msgs::StatusSC sc_out_;
-#    RTT::OutputPort<velma_core_cs_ve_body_msgs::StatusSC> port_sc_out_;
-#};
-
-#BypassComponent::BypassComponent(const std::string &name)
-#    , port_cmd_lHand_hold_in_("lHand_hold_INPORT")
-#{
-#    this->ports()->addPort(port_cmd_lHand_hold_in_);
-#
-#}
-
-#std::string BypassComponent::getDiag() {
-#// this method may not be RT-safe
-#    return "";
-#}
     s.write("}   //namespace " + package + "\n")
 
-#    s.write("ORO_LIST_COMPONENT_TYPE(BypassComponent)\n")
+    s.write("REGISTER_BUFFER_CONVERTER(" + package + "::EcInputBufferConverter)\n")
+    s.write("REGISTER_BUFFER_CONVERTER(" + package + "::EcOutputBufferConverter)\n")
 
 
     (output_dir,filename) = os.path.split(ec_msg_converter_filename)
