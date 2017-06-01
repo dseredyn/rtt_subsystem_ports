@@ -87,7 +87,7 @@ macro(rtt_subsystem_ports_debug)
 endmacro()
 
 macro(ros_generate_rtt_subsystem_ports)
-  set( _OPTIONS_ARGS )
+  set( _OPTIONS_ARGS ENABLE_CONVERTER)
   set( _ONE_VALUE_ARGS PACKAGE )
   set( _MULTI_VALUE_ARGS MESSAGES )
 
@@ -102,6 +102,12 @@ macro(ros_generate_rtt_subsystem_ports)
 
   set(_package "${_ROS_GENERATE_RTT_SUBSYSTEM_PORTS_PACKAGE}")
   set(_messages "${_ROS_GENERATE_RTT_SUBSYSTEM_PORTS_MESSAGES}")
+
+  if( _ROS_GENERATE_RTT_SUBSYSTEM_PORTS_ENABLE_CONVERTER )
+    set(_enable_converter "aaa")
+#    add_subdirectory(${rtt_subsystem_ports_DIR}/../src/templates/buffer_converter ${_package}_buffer_converter)
+  endif()
+
   add_subdirectory(${rtt_subsystem_ports_DIR}/../src/templates/subsystem_ports ${_package}_subsystem_ports)
 endmacro(ros_generate_rtt_subsystem_ports)
 

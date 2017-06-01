@@ -7,7 +7,7 @@ else()
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" PARENT_SCOPE)
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" PARENT_SCOPE)
 
 include(AddFileDependencies)
 
@@ -160,8 +160,23 @@ add_library(rtt-${_package}-subsystem_ports ${rtt-${_package}-library_SOURCES})
 target_link_libraries(rtt-${_package}-subsystem_ports ${catkin_LIBRARIES} ${${_package}_LIBRARIES} ${USE_OROCOS_LIBRARIES})
 list(APPEND OROCOS_DEFINED_TYPES " -lrtt-${_package}-subsystem_ports")
 
-orocos_component(rtt-${_package}-subsystem_ports-components ${rtt-${_package}-components_SOURCES})
+if(DEFINED _enable_converter)
+  set(CREATE_CONVERTER_EXE_PATH ${rtt_subsystem_ports_DIR}/create_converter.py)
+
+  add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/buffer_converter.cpp
+    COMMAND ${CREATE_CONVERTER_EXE_PATH} ${_package} ${CMAKE_CURRENT_BINARY_DIR}/buffer_converter.cpp
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    DEPENDS ${${_package}_EXPORTED_TARGETS} ${CREATE_CONVERTER_EXE_PATH}
+    VERBATIM)
+
+  orocos_component(rtt-${_package}-subsystem_ports-components ${rtt-${_package}-components_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/buffer_converter.cpp)
+else()
+  orocos_component(rtt-${_package}-subsystem_ports-components ${rtt-${_package}-components_SOURCES})
+endif()
+
 target_link_libraries(rtt-${_package}-subsystem_ports-components ${catkin_LIBRARIES} ${${_package}_LIBRARIES} ${USE_OROCOS_LIBRARIES} rtt-${_package}-subsystem_ports)
+
 
 # Add an explicit dependency between the typekits and message files
 # TODO: Add deps for all msg dependencies

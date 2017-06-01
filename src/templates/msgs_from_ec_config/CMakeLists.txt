@@ -139,7 +139,6 @@ set(EC_MSG_CONVERTER_FILES "${CMAKE_CURRENT_BINARY_DIR}/ec_msg_converter.cpp" PA
 set(MESSAGE_DIR "${MESSAGE_DIR}" PARENT_SCOPE)
 set(OUTPUT_FILES "${OUTPUT_FILES}" PARENT_SCOPE)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11" PARENT_SCOPE)
 
 # Set the subsystem ports sources generation script path
 #set(CREATE_CONVERTER_SOURCE_EXE_PATH ${rtt_subsystem_ports_DIR}/create_subsystem_ports_source.py)
