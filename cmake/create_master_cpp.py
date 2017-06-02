@@ -185,6 +185,7 @@ def generate_boost_serialization(package, port_def, output_cpp):
         s.write("                    singleStep_ =  RTT::OperationCaller<void()>(singleStepOp);\n")
         s.write("                }\n")
         s.write("            }\n")
+    s.write("            rtt_rosclock::disable_sim();\n")
 
     if sd.use_ros_sim_clock:
         s.write("            rtt_rosclock::use_ros_clock_topic();\n")
