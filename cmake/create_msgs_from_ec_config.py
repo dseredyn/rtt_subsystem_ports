@@ -231,12 +231,13 @@ def generateMsgsFromProcessImage(interface, msg_output_dir, top_level_name):
             data_name = ch[ch.rfind(".")+1:]
             if ch in leafs:
                 if leafs[ch].DataType in map_data_types:
-                    s.write(map_data_types[leafs[ch].DataType] + " " + nameToIdentifier(data_name) + "    # subsystem_buffer{type: port}\n")
+                    s.write(map_data_types[leafs[ch].DataType] + " " + nameToIdentifier(data_name) + "    # subsystem_buffer{type: port; validity: " + nameToIdentifier(data_name) + "_valid}\n")
                 else:
                     array_size = int(math.floor(float(leafs[ch].BitSize)/8.0))
-                    s.write("byte[" + str(array_size) + "] " + nameToIdentifier(data_name) + "    # subsystem_buffer{type: port}\n")
+                    s.write("byte[" + str(array_size) + "] " + nameToIdentifier(data_name) + "    # subsystem_buffer{type: port; validity: " + nameToIdentifier(data_name) + "_valid}\n")
             else:
-                s.write(top_level_name + nameToIdentifier(ch) + " " + nameToIdentifier(data_name) + "    # subsystem_buffer{type: container}\n")
+                s.write(top_level_name + nameToIdentifier(ch) + " " + nameToIdentifier(data_name) + "    # subsystem_buffer{type: container; validity: " + nameToIdentifier(data_name) + "_valid}\n")
+            s.write("bool " + nameToIdentifier(data_name) + "_valid\n")
 
         msg_name = top_level_name + nameToIdentifier(n) + ".msg"
 
@@ -263,12 +264,13 @@ def generateMsgsFromProcessImage(interface, msg_output_dir, top_level_name):
         data_name = ch[ch.rfind(".")+1:]
         if ch in leafs:
             if leafs[ch].DataType in map_data_types:
-                s.write(map_data_types[leafs[ch].DataType] + " " + nameToIdentifier(data_name) + "    # subsystem_buffer{type: port}\n")
+                s.write(map_data_types[leafs[ch].DataType] + " " + nameToIdentifier(data_name) + "    # subsystem_buffer{type: port; validity: " + nameToIdentifier(data_name) + "_valid}\n")
             else:
                 array_size = int(math.floor(float(leafs[ch].BitSize)/8.0))
-                s.write("byte[" + str(array_size) + "] " + nameToIdentifier(data_name) + "    # subsystem_buffer{type: port}\n")
+                s.write("byte[" + str(array_size) + "] " + nameToIdentifier(data_name) + "    # subsystem_buffer{type: port; validity: " + nameToIdentifier(data_name) + "_valid}\n")
         else:
-            s.write(top_level_name + nameToIdentifier(ch) + " " + nameToIdentifier(data_name) + "    # subsystem_buffer{type: container}\n")
+            s.write(top_level_name + nameToIdentifier(ch) + " " + nameToIdentifier(data_name) + "    # subsystem_buffer{type: container; validity: " + nameToIdentifier(data_name) + "_valid}\n")
+        s.write("bool " + nameToIdentifier(data_name) + "_valid\n")
 
     msg_name = top_level_name + ".msg"
 
