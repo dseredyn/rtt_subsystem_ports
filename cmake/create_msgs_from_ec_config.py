@@ -235,9 +235,9 @@ def generateMsgsFromProcessImage(interface, msg_output_dir, top_level_name):
                 else:
                     array_size = int(math.floor(float(leafs[ch].BitSize)/8.0))
                     s.write("byte[" + str(array_size) + "] " + nameToIdentifier(data_name) + "    # subsystem_buffer{type: port; validity: " + nameToIdentifier(data_name) + "_valid}\n")
+                s.write("bool " + nameToIdentifier(data_name) + "_valid\n")
             else:
-                s.write(top_level_name + nameToIdentifier(ch) + " " + nameToIdentifier(data_name) + "    # subsystem_buffer{type: container; validity: " + nameToIdentifier(data_name) + "_valid}\n")
-            s.write("bool " + nameToIdentifier(data_name) + "_valid\n")
+                s.write(top_level_name + nameToIdentifier(ch) + " " + nameToIdentifier(data_name) + "    # subsystem_buffer{type: container}\n")
 
         msg_name = top_level_name + nameToIdentifier(n) + ".msg"
 
@@ -268,9 +268,11 @@ def generateMsgsFromProcessImage(interface, msg_output_dir, top_level_name):
             else:
                 array_size = int(math.floor(float(leafs[ch].BitSize)/8.0))
                 s.write("byte[" + str(array_size) + "] " + nameToIdentifier(data_name) + "    # subsystem_buffer{type: port; validity: " + nameToIdentifier(data_name) + "_valid}\n")
+            s.write("bool " + nameToIdentifier(data_name) + "_valid\n")
         else:
-            s.write(top_level_name + nameToIdentifier(ch) + " " + nameToIdentifier(data_name) + "    # subsystem_buffer{type: container; validity: " + nameToIdentifier(data_name) + "_valid}\n")
-        s.write("bool " + nameToIdentifier(data_name) + "_valid\n")
+            s.write(top_level_name + nameToIdentifier(ch) + " " + nameToIdentifier(data_name) + "    # subsystem_buffer{type: container}\n")
+#            s.write(top_level_name + nameToIdentifier(ch) + " " + nameToIdentifier(data_name) + "    # subsystem_buffer{type: container; validity: " + nameToIdentifier(data_name) + "_valid}\n")
+#        s.write("bool " + nameToIdentifier(data_name) + "_valid\n")
 
     msg_name = top_level_name + ".msg"
 
@@ -300,7 +302,7 @@ def genConvertFromMsg(interface, s):
 
         if v.DataType == 'BIT':
             masks = [0xFE, 0xFD, 0xFB, 0xF7, 0xEF, 0xDF, 0xBF, 0x7F]
-            s.write("    data[" + str(int(v.BitOffs/8)) + "] = (data[" + str(int(v.BitOffs/8)) + "]&" + str(masks[v.BitOffs%8]) + ") | (msg." + name_id + "<<" + str(v.BitOffs%8) + ");\\\n")
+            s.write("    (data)[" + str(int(v.BitOffs/8)) + "] = ((data)[" + str(int(v.BitOffs/8)) + "]&" + str(masks[v.BitOffs%8]) + ") | ((msg)." + name_id + "<<" + str(v.BitOffs%8) + ");\\\n")
         else:
             if (v.BitOffs%8) != 0:
                 eprint("wrong bit offset, variable name: " + v.Name + ", BitOffs: " + str(v.BitOffs) + ", DataType: " + v.DataType)
@@ -311,7 +313,7 @@ def genConvertFromMsg(interface, s):
             byte_size = int(v.BitSize/8)
             byte_offs = int(v.BitOffs/8)
             for i in range(byte_size):
-                s.write("    data[" + str(int(v.BitOffs/8) + i) + "] = reinterpret_cast<const uint8_t*>(&msg." + name_id + ")[" + str(i) + "];\\\n")
+                s.write("    (data)[" + str(int(v.BitOffs/8) + i) + "] = reinterpret_cast<const uint8_t*>(&(msg)." + name_id + ")[" + str(i) + "];\\\n")
     s.write(";\n")
 
 def genConvertToMsg(interface, s):
@@ -326,7 +328,7 @@ def genConvertToMsg(interface, s):
             sep = "."
 
         if v.DataType == 'BIT':
-            s.write("    msg." + name_id + " = (data[" + str(int(v.BitOffs/8)) + "]>>" + str(v.BitOffs%8) + ")&1;\\\n")
+            s.write("    (msg)." + name_id + " = ((data)[" + str(int(v.BitOffs/8)) + "]>>" + str(v.BitOffs%8) + ")&1;\\\n")
         else:
             if (v.BitOffs%8) != 0:
                 eprint("wrong bit offset, variable name: " + v.Name + ", BitOffs: " + str(v.BitOffs) + ", DataType: " + v.DataType)
@@ -337,7 +339,8 @@ def genConvertToMsg(interface, s):
             byte_size = int(v.BitSize/8)
             byte_offs = int(v.BitOffs/8)
             for i in range(byte_size):
-                s.write("    reinterpret_cast<uint8_t*>(&msg." + name_id + ")[" + str(i) + "] = data[" + str(int(v.BitOffs/8) + i) + "];\\\n")
+                s.write("    reinterpret_cast<uint8_t*>(&(msg)." + name_id + ")[" + str(i) + "] = (data)[" + str(int(v.BitOffs/8) + i) + "];\\\n")
+        s.write("    (msg)." + name_id + "_valid = true;\\\n")
     s.write(";\n")
 
 def generate_msgs(package, ec_config_file, msg_output_dir, ec_msg_converter_filename, ec_msg_converter_h_filename):

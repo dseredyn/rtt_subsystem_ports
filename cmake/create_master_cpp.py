@@ -150,8 +150,9 @@ def generate_boost_serialization(package, port_def, output_cpp):
     s.write("    explicit " + package + "_Master(RTT::TaskContext* owner)\n")
     s.write("        : common_behavior::MasterService(owner)\n")
     s.write("        , owner_(owner)\n")
-    if sd.trigger_methods.onNoData():
-        s.write("        , port_no_data_trigger_in__(\"no_data_trigger_INPORT_\")\n")
+    for p_in in sd.buffers_in:
+        if sd.trigger_methods.onNoData(p_in.alias):
+            s.write("        , " + p_in.alias + "_new_data_(false)\n")
     s.write("    {\n")
 
     for p_in in sd.buffers_in:
@@ -160,10 +161,10 @@ def generate_boost_serialization(package, port_def, output_cpp):
             s.write("        owner_->addEventPort(\"" + p_in.alias + "_INPORT\", port_" + p_in.alias + "_in_);\n")
         else:
             s.write("        owner_->addPort(\"" + p_in.alias + "_INPORT\", port_" + p_in.alias + "_in_);\n")
-        s.write("        owner_->addPort(\"" + p_in.alias + "_OUTPORT\", port_" + p_in.alias + "_out_);\n\n")
-
-    if sd.trigger_methods.onNoData():
-        s.write("\n        owner_->addEventPort(port_no_data_trigger_in__);\n")
+        s.write("        owner_->addPort(\"" + p_in.alias + "_OUTPORT\", port_" + p_in.alias + "_out_);\n")
+        if sd.trigger_methods.onNoData(p_in.alias):
+            s.write("        owner_->addEventPort(\"" + p_in.alias + "_no_data_INPORT_\", port_" + p_in.alias + "_no_data_trigger_in__);\n")
+        s.write("\n")
 
     s.write("        bool use_sim_time = false;\n")
     s.write("        ros::param::get(\"/use_sim_time\", use_sim_time);\n")
@@ -233,25 +234,41 @@ def generate_boost_serialization(package, port_def, output_cpp):
         s.write("        in->" + p_in.alias + " = " + p_in.getTypeCpp() + "();\n")
     s.write("    }\n\n")
 
-    s.write("    virtual void readBuffers(common_behavior::InputDataPtr& in_data) {\n")
+    s.write("    virtual bool readBuffers() {\n")
+    s.write("        bool timeout = false;\n")
+    for p_in in sd.buffers_in:
+        s.write("        if (port_" + p_in.alias + "_in_.read(" + p_in.alias + "_data_, false) == RTT::NewData) {\n")
+        if sd.trigger_methods.onNoData(p_in.alias):
+            s.write("            bool tmp;\n")
+            s.write("            port_" + p_in.alias + "_no_data_trigger_in__.read(tmp);\n")
+            s.write("            " + p_in.alias + "_new_data_ = true;\n")
+        s.write("        }\n")
+        if sd.trigger_methods.onNoData(p_in.alias):
+            s.write("        else {\n")
+            s.write("            bool tmp;\n")
+            s.write("            if (port_" + p_in.alias + "_no_data_trigger_in__.read(tmp) == RTT::NewData) {\n")
+            s.write("                timeout = true;\n")
+            s.write("                " + p_in.alias + "_data_ = " + p_in.getTypeCpp() + "();\n")
+            s.write("                " + p_in.alias + "_new_data_ = false;\n")
+            s.write("            }\n")
+            s.write("        }\n")
+    s.write("        bool all_data_new = true")
+    for p_in in sd.buffers_in:
+        if sd.trigger_methods.onNoData(p_in.alias):
+            s.write(" && " + p_in.alias + "_new_data_")
+    s.write(";\n")
+        
+    s.write("        return all_data_new || timeout;\n")
+    s.write("    }\n\n")
+
+    s.write("    virtual void getBuffers(common_behavior::InputDataPtr& in_data) {\n")
     s.write("        boost::shared_ptr<InputData > in = boost::static_pointer_cast<InputData >(in_data);\n")
     for p_in in sd.buffers_in:
-#        no_data_max = 50
-#        if p_in.event:
-        no_data_max = 0
-        s.write("        if (port_" + p_in.alias + "_in_.read(in->" + p_in.alias + ", false) != RTT::NewData) {\n")
-        s.write("            if (" + p_in.alias + "_no_data_counter_ >= " + str(no_data_max) + ") {\n")
-        s.write("                in->" + p_in.alias + " = " + p_in.getTypeCpp() + "();\n")
-        s.write("            }\n")
-        s.write("            else {\n")
-        s.write("                " + p_in.alias + "_no_data_counter_++;\n")
-        s.write("                in->" + p_in.alias + " = " + p_in.alias + "_prev_;\n")
-        s.write("            }\n")
-        s.write("        }\n")
-        s.write("        else {\n")
-        s.write("            " + p_in.alias + "_no_data_counter_ = 0;\n")
-        s.write("            " + p_in.alias + "_prev_ = in->" + p_in.alias + ";\n")
-        s.write("        }\n")
+        s.write("        in->" + p_in.alias + " = " + p_in.alias + "_data_;\n")
+        s.write("        " + p_in.alias + "_data_ = " + p_in.getTypeCpp() + "();\n")
+        if sd.trigger_methods.onNoData(p_in.alias):
+            s.write("        " + p_in.alias + "_new_data_ = false;\n")
+        s.write("\n")
     s.write("    }\n\n")
 
     s.write("    virtual void writePorts(common_behavior::InputDataPtr& in_data) {\n")
@@ -283,13 +300,9 @@ def generate_boost_serialization(package, port_def, output_cpp):
                 s.write(" true, " + str(no_data_event.first_timeout) + ", " + str(no_data_event.next_timeout) + ", " + str(no_data_event.first_timeout_sim))
             else:
                 s.write(" false, 0.0, 0.0, 0.0")
+            if p.converter:
+                s.write(", \"" + p.converter + "\"")
             s.write("));\n")
-
-#            if p.event:
-#                s.write("        info.push_back(common_behavior::InputBufferInfo(\"" + p.getTypeStr() + "\", \"" + p.alias + "\", true, " + str(p.period_min) + ", " + str(p.period_avg) + ", " + str(p.period_max) + ", " + str(p.period_sim_max) + "));\n")
-#            else:
-#                s.write("        info.push_back(common_behavior::InputBufferInfo(\"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
-#            s.write("        info.push_back(common_behavior::InputBufferInfo(\"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
     s.write("    }\n\n")
 
     s.write("    virtual void getUpperInputBuffers(std::vector<common_behavior::InputBufferInfo >& info) const {\n")
@@ -297,11 +310,11 @@ def generate_boost_serialization(package, port_def, output_cpp):
 
     if sd.trigger_methods.onNewData():
         for tm in sd.trigger_methods.onNewData():
-            s.write("// " + tm.name + ", " + str(tm.min) + "\n")
+            s.write("// onNewData: " + tm.name + ", " + str(tm.min) + "\n")
             
     if sd.trigger_methods.onNoData():
         for tm in sd.trigger_methods.onNoData():
-            s.write("// " + tm.name + ", " + str(tm.first_timeout) + ", " + str(tm.next_timeout) + ", " + str(tm.first_timeout_sim) + "\n")
+            s.write("// onNoData: " + tm.name + ", " + str(tm.first_timeout) + ", " + str(tm.next_timeout) + ", " + str(tm.first_timeout_sim) + "\n")
 
     for p in sd.buffers_in:
         if p.side == 'top':
@@ -317,13 +330,9 @@ def generate_boost_serialization(package, port_def, output_cpp):
                 s.write(" true, " + str(no_data_event.first_timeout) + ", " + str(no_data_event.next_timeout) + ", " + str(no_data_event.first_timeout_sim))
             else:
                 s.write(" false, 0.0, 0.0, 0.0")
+            if p.converter:
+                s.write(", \"" + p.converter + "\"")
             s.write("));\n")
-
-#            if p.event:
-#                s.write("        info.push_back(common_behavior::InputBufferInfo(\"" + p.getTypeStr() + "\", \"" + p.alias + "\", true, " + str(p.period_min) + ", " + str(p.period_avg) + ", " + str(p.period_max) + ", " + str(p.period_sim_max) + "));\n")
-#            else:
-#                s.write("        info.push_back(common_behavior::InputBufferInfo(\"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
-#            s.write("        info.push_back(common_behavior::InputBufferInfo(\"" + p.getTypeStr() + "\", \"" + p.alias + "\"));\n")
     s.write("    }\n\n")
 
     s.write("    virtual void getLowerOutputBuffers(std::vector<common_behavior::OutputBufferInfo >& info) const {\n")
@@ -404,13 +413,17 @@ def generate_boost_serialization(package, port_def, output_cpp):
 
     s.write("protected:\n")
     for p in sd.buffers_in:
-        s.write("    " + p.getTypeCpp() + " " + p.alias + "_prev_;\n")
-        s.write("    int " + p.alias + "_no_data_counter_;\n")
+#        s.write("    " + p.getTypeCpp() + " " + p.alias + "_prev_;\n")
+#        s.write("    int " + p.alias + "_no_data_counter_;\n")
         s.write("    RTT::InputPort<" + p.getTypeCpp() + " > port_" + p.alias + "_in_;\n")
         s.write("    RTT::OutputPort<" + p.getTypeCpp() + " > port_" + p.alias + "_out_;\n")
+        if sd.trigger_methods.onNoData(p.alias):
+            s.write("    RTT::InputPort<bool > port_" + p.alias + "_no_data_trigger_in__;\n")
+            s.write("    bool " + p.alias + "_new_data_;\n")
+        s.write("    " + p.getTypeCpp() + " " + p.alias + "_data_;\n")
 
-    if sd.trigger_methods.onNoData() != None:
-        s.write("\n    RTT::InputPort<bool > port_no_data_trigger_in__;\n")
+#    if sd.trigger_methods.onNoData() != None:
+#        s.write("\n    RTT::InputPort<bool > port_no_data_trigger_in__;\n")
 
     s.write("\n    RTT::TaskContext* owner_;\n")
     if sd.trigger_gazebo:
