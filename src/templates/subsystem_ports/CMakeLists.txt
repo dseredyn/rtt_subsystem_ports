@@ -23,6 +23,9 @@ endif()
 
 find_package(genmsg REQUIRED)
 
+find_package(common_interfaces REQUIRED)
+orocos_use_package(rtt_rosclock)
+
 # Get all .msg files
 if(${_package}_FOUND AND NOT ROSBUILD_init_called)
   # Use catkin-based genmsg to find msg files

@@ -186,7 +186,7 @@ def write_boost_serialization(s, spec, cpp_name_prefix, file):
     #
     s.write('%s_InputPorts::%s_InputPorts(RTT::TaskContext *tc, const std::string& prefix) {\n'%(spec.short_name, spec.short_name))
 
-    s.write('  this_container__.reset( new interface_ports::InputPort<Container_ >(tc, prefix ) );\n')
+    s.write('  this_container__.reset( new interface_ports::InputPort<%s >(tc, prefix ) );\n'%(spec.short_name))
 
     # generate member list
     for field in spec.parsed_fields():
@@ -197,10 +197,7 @@ def write_boost_serialization(s, spec, cpp_name_prefix, file):
                     raise
                 s.write('  %s_ = interface_ports::InputPortInterfaceFactory<%s >::Instance()->Create("%s", tc, prefix + std::string(prefix.empty()?"":"_") + \"%s\");\n'%(field.name, msg_type_to_cpp(field.type)[:-1], field.type, field.name))
             elif port_spec[0] == 'port':
-                s.write('  %s_ = interface_ports::InputPortInterfaceFactory<%s >::Instance()->Create("%s_%s_%s", tc, prefix + std::string(prefix.empty()?"":"_") + \"%s\");\n'%(field.name, msg_type_to_cpp(field.type), spec.package, spec.short_name, field.name, field.name))
-                s.write('  if (!%s_) {\n'%(field.name))
-                s.write('    %s_.reset( new interface_ports::InputPort<Container_::_%s_type >(tc, prefix + std::string(prefix.empty()?"":"_") + \"%s\") );\n'%(field.name, field.name, field.name))
-                s.write('  }\n')
+                s.write('  %s_.reset( new interface_ports::InputPort<%s >(tc, prefix + std::string(prefix.empty()?"":"_") + \"%s\") );\n'%(field.name, msg_type_to_cpp(field.type), field.name))
     s.write('}\n\n')
 
     s.write('bool %s_InputPorts::read(%s& ros) {\n'%(spec.short_name, spec.short_name))
@@ -256,7 +253,7 @@ def write_boost_serialization(s, spec, cpp_name_prefix, file):
     #
     s.write('%s_OutputPorts::%s_OutputPorts(RTT::TaskContext *tc, const std::string& prefix) {\n'%(spec.short_name, spec.short_name))
 
-    s.write('  this_container__.reset( new interface_ports::OutputPort<Container_ >(tc, prefix ) );\n')
+    s.write('  this_container__.reset( new interface_ports::OutputPort<%s >(tc, prefix ) );\n'%(spec.short_name))
     # generate member list
     for field in spec.parsed_fields():
         if field.name in port_spec_dict:
@@ -266,10 +263,7 @@ def write_boost_serialization(s, spec, cpp_name_prefix, file):
                     raise Exception('built in type', "field \'" + field.name + "\' is specified as container, but it is built-in type" )
                 s.write('  %s_ = interface_ports::OutputPortInterfaceFactory<%s >::Instance()->Create("%s", tc, prefix + std::string(prefix.empty()?"":"_") + \"%s\");\n'%(field.name, msg_type_to_cpp(field.type)[:-1], field.type, field.name))
             elif port_spec[0] == 'port':
-                s.write('  %s_ = interface_ports::OutputPortInterfaceFactory<%s >::Instance()->Create("%s_%s_%s", tc, prefix + std::string(prefix.empty()?"":"_") + \"%s\");\n'%(field.name, msg_type_to_cpp(field.type), spec.package, spec.short_name, field.name, field.name))
-                s.write('  if (!%s_) {\n'%(field.name))
-                s.write('    %s_.reset( new interface_ports::OutputPort<Container_::_%s_type >(tc, prefix + std::string(prefix.empty()?"":"_") + \"%s\") );\n'%(field.name, field.name, field.name))
-                s.write('  }\n')
+                s.write('  %s_.reset( new interface_ports::OutputPort<%s >(tc, prefix + std::string(prefix.empty()?"":"_") + \"%s\") );\n'%(field.name, msg_type_to_cpp(field.type), field.name))
     s.write('}\n\n')
 
     s.write('bool %s_OutputPorts::write(const %s& ros) {\n'%(spec.short_name, spec.short_name))

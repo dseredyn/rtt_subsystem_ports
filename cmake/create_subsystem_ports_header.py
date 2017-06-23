@@ -179,20 +179,12 @@ def write_boost_serialization(s, spec, cpp_name_prefix, file):
         if field.name in port_spec_dict:
             array_size = array_size + 1
 
-    s.write('  boost::shared_ptr<interface_ports::InputPortInterface<Container_ > > this_container__;\n')
+    s.write('  boost::shared_ptr<interface_ports::InputPortInterface<%s > > this_container__;\n'%(spec.short_name))
 
     # generate member list
     for field in spec.parsed_fields():
         if field.name in port_spec_dict:
-            s.write('  boost::shared_ptr<interface_ports::InputPortInterface<Container_::_%s_type > > %s_;\n'%(field.name, field.name))
-#            port_spec = port_spec_dict[field.name]
-#            if port_spec[0] == 'container':
-#                if field.is_builtin:
-#                    raise
-#                s.write('  %s_InputPorts %s_;\n'%(msg_type_to_cpp(field.type)[:-1], field.name))
-#            elif port_spec[0] == 'port':
-#                s.write('  RTT::InputPort<Container_::_%s_type > %s_;\n'%(field.name, field.name))
-
+            s.write('  boost::shared_ptr<interface_ports::InputPortInterface<%s > > %s_;\n'%(msg_type_to_cpp(field.type), field.name))
 
     s.write('\npublic:\n')
 
@@ -218,19 +210,12 @@ def write_boost_serialization(s, spec, cpp_name_prefix, file):
         if field.name in port_spec_dict:
             array_size = array_size + 1
 
-    s.write('  boost::shared_ptr<interface_ports::OutputPortInterface<Container_ > > this_container__;\n')
+    s.write('  boost::shared_ptr<interface_ports::OutputPortInterface<%s > > this_container__;\n'%(spec.short_name))
 
     # generate member list
     for field in spec.parsed_fields():
         if field.name in port_spec_dict:
-            s.write('  boost::shared_ptr<interface_ports::OutputPortInterface<Container_::_%s_type > > %s_;\n'%(field.name, field.name))
-#            port_spec = port_spec_dict[field.name]
-#            if port_spec[0] == 'container':
-#                if field.is_builtin:
-#                    raise
-#                s.write('  %s_OutputPorts %s_;\n'%(msg_type_to_cpp(field.type)[:-1], field.name))
-#            elif port_spec[0] == 'port':
-#                s.write('  RTT::OutputPort<Container_::_%s_type > %s_;\n'%(field.name, field.name))
+            s.write('  boost::shared_ptr<interface_ports::OutputPortInterface<%s > > %s_;\n'%(msg_type_to_cpp(field.type), field.name))
 
     s.write('\npublic:\n')
 
@@ -243,9 +228,6 @@ def write_boost_serialization(s, spec, cpp_name_prefix, file):
     s.write('} // namespace %s\n\n'%(spec.package))
 
     s.write('#endif // %s_SUBSYSTEM_PORTS_%s_H\n'%(spec.package.upper(), spec.short_name.upper()))
-
-    s.write('// Hello world!\n')
-
 
 
 def generate_boost_serialization(package, msg_path, msg_type, boost_header_path):
