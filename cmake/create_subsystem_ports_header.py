@@ -159,7 +159,7 @@ def write_boost_serialization(s, spec, cpp_name_prefix, file):
     s.write('#ifndef %s_SUBSYSTEM_PORTS_%s_H\n'%(spec.package.upper(), spec.short_name.upper()))
     s.write('#define %s_SUBSYSTEM_PORTS_%s_H\n\n'%(spec.package.upper(), spec.short_name.upper()))
     s.write('#include <rtt/RTT.hpp>\n')
-    s.write('#include <common_interfaces/interface_ports.h>\n')
+    s.write('#include <common_interfaces/interface_ports_fwd.h>\n')
     s.write('#include <%s/%s.h>\n'%(spec.package,spec.short_name))
 
     s.write('namespace %s {\n\n'%(spec.package))

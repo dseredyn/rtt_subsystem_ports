@@ -108,14 +108,30 @@ class TriggerOnPeriod(Trigger):
         super(TriggerOnPeriod, self).__init__("period")
         self.value = float(xml.getAttribute("value"))
 
+class TriggerOnInterval(Trigger):
+    def __init__(self, xml):
+        super(TriggerOnInterval, self).__init__("interval")
+        self.min = float(xml.getAttribute("min"))
+        self.first = float(xml.getAttribute("first"))
+        self.first_sim = float(xml.getAttribute("first_sim"))
+        self.next = float(xml.getAttribute("next"))
+#        obligatory_data = xml.getElementsByTagName('obligatory_data')
+#        self.obligatory_data = []
+#        for od in obligatory_data:
+#            self.obligatory_data.append( od.getAttribute("buffer_name") )
+
 class TriggerMethods:
     def parse(self, xml):
         new_data_on_buffer = xml.getElementsByTagName('new_data_on_buffer')
         no_data_on_buffer = xml.getElementsByTagName('no_data_on_buffer')
         period = xml.getElementsByTagName('period')
+        interval = xml.getElementsByTagName('interval')
 
         if not (len(period) == 0 or len(period) == 1):
             raise Exception('period', 'wrong number of <period> tags in <trigger_methods>, should be 0 or 1')
+
+        if not (len(interval) == 0 or len(interval) == 1):
+            raise Exception('interval', 'wrong number of <interval> tags in <trigger_methods>, should be 0 or 1')
 
         if len(new_data_on_buffer) + len(no_data_on_buffer) + len(period) == 0:
             raise Exception('<trigger_methods>', 'at least one trigger method should be specified')
@@ -133,10 +149,14 @@ class TriggerMethods:
         if len(period) == 1:
             self.period = TriggerOnPeriod(period[0])
 
+        if len(interval) == 1:
+            self.interval = TriggerOnInterval(interval[0])
+
     def __init__(self, xml=None):
         self.new_data = None
         self.no_data = None
         self.period = None
+        self.interval = None
         if xml:
             self.parse(xml)
 
